@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "nvidia-skills": {
+      "enabled": true
+    }
+  }
+}

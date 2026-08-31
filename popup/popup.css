@@ -1,0 +1,199 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  color: #1e293b;
+  background: #f8fafc;
+}
+
+.crosscart-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.crosscart-brand {
+  font-weight: 700;
+  font-size: 16px;
+  flex: 1;
+}
+
+.crosscart-list-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.crosscart-list-bar select {
+  flex: 1;
+}
+
+.crosscart-new-list-form {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.crosscart-new-list-form input {
+  flex: 1;
+}
+
+.crosscart-btn-primary,
+.crosscart-btn-secondary {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.crosscart-btn-primary {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.crosscart-btn-secondary {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.crosscart-cart-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+.crosscart-empty {
+  text-align: center;
+  color: #94a3b8;
+  padding: 24px 0;
+}
+
+.crosscart-list-card {
+  padding: 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.crosscart-list-card-name {
+  font-weight: 600;
+}
+
+.crosscart-list-card-meta {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.crosscart-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+}
+
+.crosscart-item.crosscart-dragging {
+  opacity: 0.5;
+}
+
+.crosscart-item-img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.crosscart-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.crosscart-item-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.crosscart-item-domain {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.crosscart-item-price {
+  font-weight: 600;
+  color: #2563eb;
+}
+
+.crosscart-item-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.crosscart-qty {
+  width: 48px;
+}
+
+.crosscart-delete {
+  border: none;
+  background: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.crosscart-footer {
+  padding: 10px 12px;
+  border-top: 1px solid #e2e8f0;
+  font-weight: 600;
+  text-align: right;
+}
+
+.crosscart-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crosscart-modal-content {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px;
+  width: 280px;
+}
+
+.crosscart-modal-title {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.crosscart-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CrossCart</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="crosscart-header">
+    <div class="crosscart-brand">CrossCart</div>
+    <select id="currency-select"></select>
+    <button id="clear-all-btn" class="crosscart-btn-secondary">Clear All</button>
+  </header>
+
+  <div class="crosscart-list-bar">
+    <button id="back-btn" class="crosscart-btn-secondary">&larr; Back</button>
+    <select id="list-select"></select>
+    <button id="new-list-btn" class="crosscart-btn-secondary">New</button>
+    <button id="rename-list-btn" class="crosscart-btn-secondary">Rename</button>
+    <button id="delete-list-btn" class="crosscart-btn-secondary">Delete</button>
+  </div>
+
+  <div id="new-list-form" class="crosscart-new-list-form" style="display: none;">
+    <input id="new-list-input" type="text" placeholder="List name" />
+    <button id="new-list-confirm" class="crosscart-btn-primary">Create</button>
+    <button id="new-list-cancel" class="crosscart-btn-secondary">Cancel</button>
+  </div>
+
+  <main id="cart-list" class="crosscart-cart-list"></main>
+
+  <footer id="footer-summary" class="crosscart-footer"></footer>
+
+  <div id="save-modal" class="crosscart-modal" style="display: none;">
+    <div class="crosscart-modal-content">
+      <div class="crosscart-modal-title">Save to list</div>
+      <select id="modal-list-select"></select>
+      <div class="crosscart-modal-actions">
+        <button id="modal-save" class="crosscart-btn-primary">Save</button>
+        <button id="modal-cancel" class="crosscart-btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../shared/constants.js"></script>
+  <script src="../shared/currency.js"></script>
+  <script src="storage.js"></script>
+  <script src="currency-rates.js"></script>
+  <script src="lists.js"></script>
+  <script src="render.js"></script>
+  <script src="dnd.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

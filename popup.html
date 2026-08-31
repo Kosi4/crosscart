@@ -91,14 +91,21 @@
 
       .item-card {
         display: grid;
-        grid-template-columns: 56px 1fr auto;
-        gap: 10px;
+        grid-template-columns: 20px 56px 1fr auto;
+        gap: 6px;
         align-items: start;
-        padding: 10px;
+        padding: 10px 10px 10px 4px;
         margin-bottom: 8px;
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 10px;
+        cursor: grab;
+        user-select: none;
+        transition: opacity 0.15s ease, border-color 0.15s ease;
+      }
+
+      .item-card:active {
+        cursor: grabbing;
       }
 
       .item-card img {
@@ -192,6 +199,7 @@
         <h1>CrossCart</h1>
         <span>Universal product cart</span>
       </div>
+      <button id="back-btn" class="back-btn" type="button" style="display:none" aria-label="Back to lists">&larr;</button>
       <div class="header-actions">
         <label for="currency-select" class="visually-hidden" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Currency</label>
         <select id="currency-select" aria-label="Display currency">
@@ -208,12 +216,41 @@
       </div>
     </header>
 
+    <div class="list-bar">
+      <select id="list-select" aria-label="Shopping list"></select>
+      <button id="rename-list-btn" class="list-action-btn" type="button" title="Rename current list">✎</button>
+      <button id="new-list-btn" class="list-action-btn" type="button" title="Create new list">+</button>
+      <button id="delete-list-btn" class="list-action-btn" type="button" title="Delete current list">−</button>
+    </div>
+
+    <div id="new-list-form" class="new-list-form">
+      <input type="text" id="new-list-input" placeholder="List name…" maxlength="50" autocomplete="off" />
+      <div class="new-list-actions">
+        <button id="confirm-list-btn" type="button">Create</button>
+        <button id="cancel-list-btn" type="button">Cancel</button>
+      </div>
+    </div>
+
     <main id="cart-list"></main>
 
     <footer>
       <span id="cart-count">0 items</span>
       <strong id="cart-total">$0.00</strong>
     </footer>
+
+    <!-- List-selection modal -->
+    <div id="list-modal" class="modal-overlay" style="display:none">
+      <div class="modal-panel">
+        <h3 class="modal-title">Save to list</h3>
+        <div id="modal-product-summary" class="modal-product-summary"></div>
+        <div id="modal-list-options" class="modal-list-options"></div>
+        <div class="modal-new-list-row">
+          <input type="text" id="modal-list-input" placeholder="New list name&hellip;" maxlength="50" autocomplete="off" />
+          <button id="modal-create-btn" type="button">Create</button>
+        </div>
+        <button id="modal-cancel-btn" type="button" class="modal-cancel-btn">Cancel</button>
+      </div>
+    </div>
 
     <script src="popup.js"></script>
   </body>

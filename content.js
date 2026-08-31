@@ -1,6 +1,8 @@
 (() => {
   const BUTTON_ID = "crosscart-btn";
   const STORAGE_KEY = "cartItems";
+  const LISTS_KEY = "cartLists";
+  const ACTIVE_LIST_KEY = "activeList";
   const DEFAULT_LABEL = "+ Add to CrossCart";
   const SAVED_LABEL = "Saved!";
   const SUPPORTED_CURRENCIES = [
@@ -750,6 +752,7 @@
       url: location.href,
       domain: hostname,
       source: merged.source,
+      quantity: 1,
       savedAt: new Date().toISOString(),
     };
   }
@@ -766,14 +769,14 @@
     const button = ensureButton();
     const item = scrapeProduct();
 
-    chrome.storage.local.get([STORAGE_KEY], (result) => {
-      const cartItems = Array.isArray(result[STORAGE_KEY])
-        ? result[STORAGE_KEY]
-        : [];
-      cartItems.push(item);
-      chrome.storage.local.set({ [STORAGE_KEY]: cartItems }, () => {
-        flashSaved(button);
-      });
+    // Save as pending so the popup can ask the user which list to store it in
+    chrome.storage.local.set({
+      pendingProduct: item,
+      pendingProductTimestamp: Date.now()
+    }, () => {
+      flashSaved(button);
+      // Notify popup if it is already open
+      chrome.runtime.sendMessage({ type: "PRODUCT_SCRAPED" }).catch(() => {});
     });
   }
 

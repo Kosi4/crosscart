@@ -14,6 +14,13 @@ window.Crosscart = window.Crosscart || {};
     'free shipping',
     'best price',
     'official store',
+    'official site',
+    'price and deal',
+    'shop online',
+    'buy online',
+    'online shopping',
+    'free delivery',
+    'best deals',
   ];
 
   function matchesAgentSite(hostname) {
@@ -29,7 +36,8 @@ window.Crosscart = window.Crosscart || {};
   function cleanTitle(raw) {
     if (!raw) return raw;
     let title = raw.trim();
-    const parts = title.split(/[|\-–]/).map((p) => p.trim()).filter(Boolean);
+    // Split on separators only — a bare hyphen would tear "Zip-Up Hoodie" apart.
+    const parts = title.split(/\s*[|–—·]\s*|\s+-\s+/).map((p) => p.trim()).filter(Boolean);
     if (parts.length > 1) {
       const kept = parts.filter((p) => !containsBoilerplatePhrase(p));
       if (kept.length) title = kept.join(' - ');

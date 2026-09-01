@@ -366,6 +366,15 @@ a.crosscart-item-link:hover .crosscart-item-title {
   margin-top: 2px;
 }
 
+.crosscart-item-specs {
+  font-size: 11px;
+  color: var(--cc-text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .crosscart-item-price {
   font-weight: 700;
   font-size: 13px;

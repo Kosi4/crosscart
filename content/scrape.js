@@ -247,7 +247,7 @@ window.Crosscart = window.Crosscart || {};
     '[class*="recommend"]',
     '[class*="also-"]',
     '[class*="carousel"]',
-    '[class*="compare-at"]',
+    '[class*="compare"]',
     '[class*="was-price"]',
     '[class*="old-price"]',
     '[class*="regular-price"]',
@@ -272,19 +272,9 @@ window.Crosscart = window.Crosscart || {};
     return match ? match[0] : '';
   }
 
-  // Reads the element's full text, so markup that splits the symbol from the
-  // amount (WooCommerce wraps "$" in its own span) still resolves.
-  function scanCurrencyPrice() {
-    const pricePattern = /(?:\$|€|£|¥|₹|R|USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\s*[\d.,\s ]*\d/i;
+  const PRICE_PATTERN = /(?:\$|€|£|¥|₹|R|USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\s*[\d.,\s ]*\d/i;
 
-    let scope = null;
-    for (const selector of PRICE_SCOPES) {
-      scope = document.querySelector(selector);
-      if (scope) break;
-    }
-    if (!scope) scope = document.body;
-    if (!scope) return '';
-
+  function findPriceIn(scope) {
     // itemprop=price is authoritative when present, and often a clean number.
     const tagged = scope.querySelector('[itemprop="price"]:not(del [itemprop="price"])');
     if (tagged && !tagged.closest(PRICE_EXCLUDED)) {
@@ -292,16 +282,38 @@ window.Crosscart = window.Crosscart || {};
       if (value && /\d/.test(value)) return value;
     }
 
-    // <ins> is the sale price in WooCommerce/WordPress markup, so it wins.
-    const candidates = [...scope.querySelectorAll('ins, [class*="price"], [itemprop="price"]')];
-    for (const el of candidates) {
-      if (el.closest(PRICE_EXCLUDED)) continue;
-      if (el.querySelector('[class*="price"], ins')) continue; // prefer the leaf node
-      const text = el.textContent.replace(/\s+/g, ' ').trim();
-      const match = text.match(pricePattern);
-      if (match) return match[0];
+    // Sale/current markers first (<ins> is WooCommerce's sale price) so a
+    // discounted item resolves to what you would actually pay.
+    const groups = [
+      'ins, [class*="price"][class*="sale"], [class*="price"][class*="current"]',
+      'ins, [class*="price"], [itemprop="price"]',
+    ];
+    for (const selector of groups) {
+      for (const el of scope.querySelectorAll(selector)) {
+        if (el.closest(PRICE_EXCLUDED)) continue;
+        if (el.querySelector('[class*="price"], ins')) continue; // prefer the leaf node
+        const text = el.textContent.replace(/\s+/g, ' ').trim();
+        const match = text.match(PRICE_PATTERN);
+        if (match) return match[0];
+      }
     }
     return '';
+  }
+
+  // Reads element text, so markup that splits the symbol from the amount
+  // (WooCommerce wraps "$" in its own span) still resolves.
+  function scanCurrencyPrice() {
+    // A scope only counts if it actually holds a price. Taking the first
+    // element matching a selector is not enough: thesupermade.com's first
+    // [class*="product-info"] is a size-and-fit block containing no price,
+    // which used to end the search and save the item as 0.
+    for (const selector of PRICE_SCOPES) {
+      for (const scope of document.querySelectorAll(selector)) {
+        const price = findPriceIn(scope);
+        if (price) return price;
+      }
+    }
+    return document.body ? findPriceIn(document.body) : '';
   }
 
   function scrapeDomFallback() {

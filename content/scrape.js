@@ -108,89 +108,6 @@ window.Crosscart = window.Crosscart || {};
     return stripped.length >= 3 ? stripped : title;
   }
 
-  // Variant/spec context: size and colour for clothing, storage/memory for
-  // electronics. A control the shopper actually selected beats static
-  // structured data, since it reflects the variant being saved.
-  const SPEC_KEYS = /(size|colou?r|storage|capacity|memory|ram|material|style|finish|model|edition|length|width|config)/i;
-  const PLACEHOLDER = /^(choose|select|please|pick|-+|n\/a)\b|^$/i;
-
-  function cleanSpecKey(raw) {
-    const key = String(raw || '')
-      .replace(/^attribute_pa_/i, '')
-      .replace(/[-_](rdo|radio|select|option|input)s?\b/gi, '')
-      .replace(/^(basic|product|item)[-_]/i, '')
-      .replace(/[-_]+/g, ' ')
-      .trim();
-    return key ? key.charAt(0).toUpperCase() + key.slice(1) : '';
-  }
-
-  function labelTextFor(input) {
-    const byFor = input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`) : null;
-    const candidates = [
-      byFor,
-      input.closest('label'),
-      input.nextElementSibling,
-    ];
-    for (const el of candidates) {
-      const text = el && el.textContent ? el.textContent.replace(/\s+/g, ' ').trim() : '';
-      if (text) return text;
-    }
-    return input.getAttribute('aria-label') || '';
-  }
-
-  function addSpec(specs, seen, label, value) {
-    const key = cleanSpecKey(label);
-    const val = decodeEntities(String(value || '').replace(/\s+/g, ' ').trim()).slice(0, 40);
-    if (!key || !val || PLACEHOLDER.test(val) || !SPEC_KEYS.test(key)) return;
-    const dedupe = normalizeName(key);
-    if (seen.has(dedupe)) return;
-    seen.add(dedupe);
-    specs.push({ label: key, value: val });
-  }
-
-  function scrapeSpecs(productNode) {
-    const specs = [];
-    const seen = new Set();
-
-    // 1. What the shopper picked on the page.
-    document.querySelectorAll('select').forEach((select) => {
-      const option = select.selectedOptions && select.selectedOptions[0];
-      if (option) addSpec(specs, seen, select.name || select.id, option.textContent);
-    });
-    document.querySelectorAll('input:checked').forEach((input) => {
-      addSpec(specs, seen, input.name, labelTextFor(input));
-    });
-
-    // 2. Static structured data fills whatever is still missing.
-    if (productNode) {
-      ['color', 'size', 'material'].forEach((field) => {
-        if (typeof productNode[field] === 'string') addSpec(specs, seen, field, productNode[field]);
-      });
-      const extra = productNode.additionalProperty;
-      (Array.isArray(extra) ? extra : [extra]).forEach((prop) => {
-        if (prop && typeof prop === 'object') addSpec(specs, seen, prop.name, prop.value);
-      });
-    }
-
-    return specs.slice(0, 4);
-  }
-
-  function findProductNode() {
-    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-    for (const script of scripts) {
-      try {
-        for (const node of window.Crosscart.detect.collectJsonLdNodes(JSON.parse(script.textContent))) {
-          const type = node['@type'];
-          const types = Array.isArray(type) ? type : [type];
-          if (types.some((t) => typeof t === 'string' && /product/i.test(t))) return node;
-        }
-      } catch (e) {
-        // malformed JSON-LD, skip
-      }
-    }
-    return null;
-  }
-
   function scrapeJsonLd() {
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of scripts) {
@@ -319,7 +236,6 @@ window.Crosscart = window.Crosscart || {};
       merged.title = stripSiteSuffix(agentSites.cleanTitle(merged.title));
     }
 
-    merged.specs = scrapeSpecs(findProductNode());
 
     const normalized = window.Crosscart.normalizeCurrency(merged.currency);
     merged.originalCurrency = normalized || merged.currency || '';

@@ -19,14 +19,6 @@ window.Crosscart = window.Crosscart || {};
     }
   }
 
-  // Variant context ("Size M · Titanium Grey"), omitted entirely for items
-  // saved before specs existed or scraped from pages that expose none.
-  function specsLine(specs) {
-    if (!Array.isArray(specs) || !specs.length) return '';
-    const text = specs.map((s) => `${s.label} ${s.value}`).join(' · ');
-    return `<div class="crosscart-item-specs">${escapeHtml(text)}</div>`;
-  }
-
   function calcTotal(items, preferredCurrency, rates) {
     const { convertAmount } = window.Crosscart.currencyRates;
     return items.reduce((sum, item) => {
@@ -80,7 +72,6 @@ window.Crosscart = window.Crosscart || {};
           <div class="crosscart-item-info">
             <div class="crosscart-item-title">${escapeHtml(item.title)}</div>
             <div class="crosscart-item-domain">${escapeHtml(item.domain)}</div>
-            ${specsLine(item.specs)}
             <div class="crosscart-item-price">${formatMoney(converted, preferredCurrency)}</div>
           </div>`;
         return `

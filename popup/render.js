@@ -8,6 +8,17 @@ window.Crosscart = window.Crosscart || {};
     return div.innerHTML;
   }
 
+  // Item URLs come from scraped pages, so only http(s) may become a live link —
+  // anything else (javascript:, data:, ...) renders as plain, unclickable markup.
+  function safeUrl(raw) {
+    try {
+      const url = new URL(raw);
+      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
+    } catch (e) {
+      return '';
+    }
+  }
+
   function calcTotal(items, preferredCurrency, rates) {
     const { convertAmount } = window.Crosscart.currencyRates;
     return items.reduce((sum, item) => {
@@ -55,14 +66,21 @@ window.Crosscart = window.Crosscart || {};
           preferredCurrency,
           rates
         );
-        return `
-        <div class="crosscart-item" draggable="true" data-index="${index}" data-id="${escapeHtml(item.id)}">
+        const href = safeUrl(item.url);
+        const body = `
           <img class="crosscart-item-img" src="${escapeHtml(item.image)}" alt="" />
           <div class="crosscart-item-info">
             <div class="crosscart-item-title">${escapeHtml(item.title)}</div>
             <div class="crosscart-item-domain">${escapeHtml(item.domain)}</div>
             <div class="crosscart-item-price">${formatMoney(converted, preferredCurrency)}</div>
-          </div>
+          </div>`;
+        return `
+        <div class="crosscart-item" draggable="true" data-index="${index}" data-id="${escapeHtml(item.id)}">
+          ${
+            href
+              ? `<a class="crosscart-item-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" draggable="false" title="Open product page">${body}</a>`
+              : `<div class="crosscart-item-link">${body}</div>`
+          }
           <div class="crosscart-item-controls">
             <input type="number" min="1" class="crosscart-qty" value="${item.quantity || 1}" data-id="${escapeHtml(item.id)}" />
             <button class="crosscart-delete" data-id="${escapeHtml(item.id)}">Delete</button>

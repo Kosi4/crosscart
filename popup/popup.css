@@ -313,6 +313,27 @@ input:focus-visible {
   opacity: 0.4;
 }
 
+/* Wraps the thumbnail + text so the whole area opens the product page.
+   An <a> when the item has a usable http(s) URL, a plain <div> otherwise. */
+.crosscart-item-link {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: var(--cc-radius-sm);
+}
+
+a.crosscart-item-link {
+  cursor: pointer;
+}
+
+a.crosscart-item-link:hover .crosscart-item-title {
+  text-decoration: underline;
+}
+
 .crosscart-item-img {
   width: 44px;
   height: 44px;

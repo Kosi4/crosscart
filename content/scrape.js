@@ -1,6 +1,58 @@
 window.Crosscart = window.Crosscart || {};
 
 (function () {
+  // schema.org allows `image` to be a URL string, an ImageObject, or an array
+  // of either. Anything not resolvable to a URL string must come back empty so
+  // the merge falls through to og:image instead of storing an object.
+  function imageUrl(value) {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+      for (const entry of value) {
+        const url = imageUrl(entry);
+        if (url) return url;
+      }
+      return '';
+    }
+    if (value && typeof value === 'object') {
+      return typeof value.url === 'string' ? value.url : '';
+    }
+    return '';
+  }
+
+  // Some sites HTML-encode their structured data (jdsports ships
+  // "Supply &amp; Demand Men&apos;s" as the JSON-LD name). Decoding once here
+  // keeps the stored title as real text; the popup escapes it again at render.
+  // Deliberately a fixed table rather than an innerHTML round-trip, since this
+  // runs against untrusted scraped markup.
+  const ENTITIES = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+    nbsp: ' ',
+  };
+
+  function decodeEntities(text) {
+    if (typeof text !== 'string' || text.indexOf('&') === -1) return text || '';
+    return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, ref) => {
+      const named = ENTITIES[ref.toLowerCase()];
+      if (named) return named;
+      if (ref[0] === '#') {
+        const code =
+          ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
+        if (Number.isFinite(code) && code > 0 && code <= 0x10ffff) {
+          try {
+            return String.fromCodePoint(code);
+          } catch (e) {
+            return match;
+          }
+        }
+      }
+      return match;
+    });
+  }
+
   function scrapeJsonLd() {
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of scripts) {
@@ -15,7 +67,7 @@ window.Crosscart = window.Crosscart || {};
           const offer = Array.isArray(node.offers) ? node.offers[0] : node.offers;
           return {
             title: node.name || '',
-            image: Array.isArray(node.image) ? node.image[0] : node.image || '',
+            image: imageUrl(node.image),
             price: offer && offer.price ? String(offer.price) : '',
             currency: offer && offer.priceCurrency ? offer.priceCurrency : '',
             url: node.url || window.location.href,
@@ -119,6 +171,8 @@ window.Crosscart = window.Crosscart || {};
 
     const tiers = [scrapeJsonLd(), scrapeMetaTags(), scrapeMicrodata(), scrapeDomFallback()];
     const merged = mergeProductData(...tiers);
+
+    merged.title = decodeEntities(merged.title);
 
     if (agentSites.matchesAgentSite(hostname)) {
       const agentTitle = agentSites.findAgentProductTitle();

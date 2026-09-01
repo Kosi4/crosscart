@@ -108,6 +108,46 @@ window.Crosscart = window.Crosscart || {};
     return stripped.length >= 3 ? stripped : title;
   }
 
+  // `offers` may be a single Offer, an array of them (one per variant), or an
+  // AggregateOffer carrying lowPrice/highPrice instead of price. Prefer an
+  // in-stock offer, then the cheapest — that's the sale price when a site
+  // lists the discounted variant alongside the full-price one.
+  function offerPrice(offer) {
+    if (!offer || typeof offer !== 'object') return '';
+    const direct =
+      offer.price !== undefined && offer.price !== null && offer.price !== ''
+        ? offer.price
+        : offer.lowPrice !== undefined && offer.lowPrice !== null
+          ? offer.lowPrice
+          : offer.priceSpecification && offer.priceSpecification.price;
+    return direct === undefined || direct === null || direct === '' ? '' : String(direct);
+  }
+
+  function pickOffer(offers) {
+    const list = (Array.isArray(offers) ? offers : [offers]).filter(
+      (o) => o && typeof o === 'object'
+    );
+    const priced = [];
+    for (const offer of list) {
+      // AggregateOffer can nest the real offers inside itself.
+      const nested = Array.isArray(offer.offers) ? offer.offers : [];
+      for (const candidate of [offer, ...nested]) {
+        const price = offerPrice(candidate);
+        if (!price || !Number.isFinite(Number(price))) continue;
+        priced.push({
+          price,
+          currency: candidate.priceCurrency || offer.priceCurrency || '',
+          inStock: /InStock|LimitedAvailability/i.test(String(candidate.availability || '')),
+        });
+      }
+    }
+    if (!priced.length) return { price: '', currency: '' };
+
+    const inStock = priced.filter((o) => o.inStock);
+    const pool = inStock.length ? inStock : priced;
+    return pool.reduce((best, o) => (Number(o.price) < Number(best.price) ? o : best));
+  }
+
   function scrapeJsonLd() {
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of scripts) {
@@ -119,12 +159,12 @@ window.Crosscart = window.Crosscart || {};
           const types = Array.isArray(type) ? type : [type];
           if (!types.some((t) => typeof t === 'string' && /product/i.test(t))) continue;
 
-          const offer = Array.isArray(node.offers) ? node.offers[0] : node.offers;
+          const offer = pickOffer(node.offers);
           return {
             title: node.name || '',
             image: imageUrl(node.image),
-            price: offer && offer.price ? String(offer.price) : '',
-            currency: offer && offer.priceCurrency ? offer.priceCurrency : '',
+            price: offer.price,
+            currency: offer.currency,
             url: node.url || window.location.href,
           };
         }
@@ -179,16 +219,87 @@ window.Crosscart = window.Crosscart || {};
     return best ? best.src : '';
   }
 
+  // Where the real price lives, narrowest first. Scoping matters: the first
+  // ".price" on a WooCommerce page belongs to the prev/next product nav widget,
+  // not the product being viewed.
+  const PRICE_SCOPES = [
+    '[itemtype*="schema.org/Product"]',
+    '.entry-summary',
+    '.summary',
+    '.product-summary',
+    '[class*="product-info"]',
+    '[class*="product-detail"]',
+    'main',
+  ];
+
+  // Other products on the page, and struck-through "was" prices.
+  const PRICE_EXCLUDED = [
+    'del',
+    's',
+    'strike',
+    'nav',
+    'footer',
+    'aside',
+    '[class*="related"]',
+    '[class*="upsell"]',
+    '[class*="cross-sell"]',
+    '[class*="products-nav"]',
+    '[class*="recommend"]',
+    '[class*="also-"]',
+    '[class*="carousel"]',
+    '[class*="compare-at"]',
+    '[class*="was-price"]',
+    '[class*="old-price"]',
+    '[class*="regular-price"]',
+    '[class*="list-price"]',
+    '[class*="strike"]',
+  ].join(',');
+
+  // "1 499,95" / "1,499.95" / "1499.95" -> "1499.95". When both separators are
+  // present the last one is the decimal point; a lone comma is only a decimal
+  // point when exactly two digits follow it.
+  function normalizeAmount(raw) {
+    let text = String(raw || '').replace(/[\s  ']/g, '');
+    const lastComma = text.lastIndexOf(',');
+    const lastDot = text.lastIndexOf('.');
+    if (lastComma > -1 && lastDot > -1) {
+      const decimal = lastComma > lastDot ? ',' : '.';
+      text = text.replace(decimal === ',' ? /\./g : /,/g, '').replace(',', '.');
+    } else if (lastComma > -1) {
+      text = /,\d{2}$/.test(text) ? text.replace(',', '.') : text.replace(/,/g, '');
+    }
+    const match = text.match(/\d+(?:\.\d+)?/);
+    return match ? match[0] : '';
+  }
+
+  // Reads the element's full text, so markup that splits the symbol from the
+  // amount (WooCommerce wraps "$" in its own span) still resolves.
   function scanCurrencyPrice() {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    const pricePattern = /(\$|€|£|¥|₹|R\s|USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\s?[\d,]+\.?\d*/;
-    let node;
-    while ((node = walker.nextNode())) {
-      const text = node.textContent.trim();
+    const pricePattern = /(?:\$|€|£|¥|₹|R|USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\s*[\d.,\s ]*\d/i;
+
+    let scope = null;
+    for (const selector of PRICE_SCOPES) {
+      scope = document.querySelector(selector);
+      if (scope) break;
+    }
+    if (!scope) scope = document.body;
+    if (!scope) return '';
+
+    // itemprop=price is authoritative when present, and often a clean number.
+    const tagged = scope.querySelector('[itemprop="price"]:not(del [itemprop="price"])');
+    if (tagged && !tagged.closest(PRICE_EXCLUDED)) {
+      const value = tagged.getAttribute('content') || tagged.textContent;
+      if (value && /\d/.test(value)) return value;
+    }
+
+    // <ins> is the sale price in WooCommerce/WordPress markup, so it wins.
+    const candidates = [...scope.querySelectorAll('ins, [class*="price"], [itemprop="price"]')];
+    for (const el of candidates) {
+      if (el.closest(PRICE_EXCLUDED)) continue;
+      if (el.querySelector('[class*="price"], ins')) continue; // prefer the leaf node
+      const text = el.textContent.replace(/\s+/g, ' ').trim();
       const match = text.match(pricePattern);
-      if (match) {
-        return match[0];
-      }
+      if (match) return match[0];
     }
     return '';
   }
@@ -196,12 +307,11 @@ window.Crosscart = window.Crosscart || {};
   function scrapeDomFallback() {
     const h1 = document.querySelector('h1');
     const priceText = scanCurrencyPrice();
-    const priceMatch = priceText.match(/[\d,]+\.?\d*/);
     return {
       title: h1 ? h1.textContent.trim() : '',
       image: findLargestImage(),
-      price: priceMatch ? priceMatch[0].replace(/,/g, '') : '',
-      currency: priceText.replace(/[\d,.\s]/g, ''),
+      price: normalizeAmount(priceText),
+      currency: priceText.replace(/[\d.,\s ]/g, ''),
       url: window.location.href,
     };
   }

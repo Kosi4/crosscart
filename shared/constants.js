@@ -5,8 +5,6 @@ window.Crosscart.STORAGE_KEYS = {
   ACTIVE_LIST: 'activeList',
   PREFERRED_CURRENCY: 'preferredCurrency',
   EXCHANGE_RATES: 'exchangeRates',
-  PENDING_PRODUCT: 'pendingProduct',
-  PENDING_PRODUCT_TIMESTAMP: 'pendingProductTimestamp',
 };
 
 window.Crosscart.SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'ZAR', 'JPY', 'CAD', 'AUD', 'INR'];

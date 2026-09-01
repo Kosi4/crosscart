@@ -28,9 +28,9 @@
     if (button) button.style.display = '';
   }
 
-  function flashSaved(btn) {
+  function flashSaved(btn, listName) {
     const original = btn.textContent;
-    btn.textContent = 'Saved!';
+    btn.textContent = `Saved to ${listName}!`;
     btn.classList.add('crosscart-saved');
     setTimeout(() => {
       btn.textContent = original;
@@ -38,14 +38,11 @@
     }, 1500);
   }
 
-  async function onAddClick() {
+  function onAddClick() {
     const product = window.Crosscart.scrape.scrapeProduct();
-    const keys = window.Crosscart.STORAGE_KEYS;
-    await chrome.storage.local.set({
-      [keys.PENDING_PRODUCT]: product,
-      [keys.PENDING_PRODUCT_TIMESTAMP]: Date.now(),
+    window.Crosscart.picker.showPicker(button, product, (listName) => {
+      if (button) flashSaved(button, listName);
     });
-    if (button) flashSaved(button);
   }
 
   function syncButtonForPage() {

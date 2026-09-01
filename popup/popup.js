@@ -26,10 +26,6 @@
     els.backBtn = document.getElementById('back-btn');
     els.cartList = document.getElementById('cart-list');
     els.footer = document.getElementById('footer-summary');
-    els.modal = document.getElementById('save-modal');
-    els.modalListSelect = document.getElementById('modal-list-select');
-    els.modalSave = document.getElementById('modal-save');
-    els.modalCancel = document.getElementById('modal-cancel');
   }
 
   function populateCurrencySelect() {
@@ -122,42 +118,6 @@
     renderCurrentView();
   }
 
-  function showListModal(product) {
-    els.modalListSelect.innerHTML = Object.keys(state.lists)
-      .map((n) => `<option value="${n}">${render.escapeHtml(n)}</option>`)
-      .join('');
-    els.modal.dataset.pendingProduct = JSON.stringify(product);
-    els.modal.style.display = '';
-  }
-
-  function hideListModal() {
-    els.modal.style.display = 'none';
-    delete els.modal.dataset.pendingProduct;
-  }
-
-  async function checkPendingProduct() {
-    const result = await storage.getStorage([STORAGE_KEYS.PENDING_PRODUCT, STORAGE_KEYS.PENDING_PRODUCT_TIMESTAMP]);
-    const product = result[STORAGE_KEYS.PENDING_PRODUCT];
-    if (product) showListModal(product);
-  }
-
-  async function consumePendingProduct(listName) {
-    const raw = els.modal.dataset.pendingProduct;
-    if (!raw) return;
-    const product = JSON.parse(raw);
-    state.lists = listsApi.saveToList(state.lists, listName, product);
-    state.activeList = listName;
-    await persist();
-    await storage.setStorage({
-      [STORAGE_KEYS.PENDING_PRODUCT]: null,
-      [STORAGE_KEYS.PENDING_PRODUCT_TIMESTAMP]: null,
-    });
-    hideListModal();
-    populateListSelector();
-    state.viewMode = 'list';
-    renderCurrentView();
-  }
-
   function wireEvents() {
     els.currencySelect.addEventListener('change', async () => {
       state.preferredCurrency = els.currencySelect.value;
@@ -200,19 +160,7 @@
       renderCurrentView();
     });
 
-    els.modalSave.addEventListener('click', () => consumePendingProduct(els.modalListSelect.value));
-    els.modalCancel.addEventListener('click', async () => {
-      await storage.setStorage({
-        [STORAGE_KEYS.PENDING_PRODUCT]: null,
-        [STORAGE_KEYS.PENDING_PRODUCT_TIMESTAMP]: null,
-      });
-      hideListModal();
-    });
-
     storage.subscribeToChanges((changes) => {
-      if (changes[STORAGE_KEYS.PENDING_PRODUCT] && changes[STORAGE_KEYS.PENDING_PRODUCT].newValue) {
-        showListModal(changes[STORAGE_KEYS.PENDING_PRODUCT].newValue);
-      }
       if (changes[STORAGE_KEYS.CART_LISTS]) {
         state.lists = changes[STORAGE_KEYS.CART_LISTS].newValue || state.lists;
         renderCurrentView();
@@ -237,8 +185,6 @@
     populateListSelector();
     wireEvents();
     renderCurrentView();
-
-    await checkPendingProduct();
   }
 
   document.addEventListener('DOMContentLoaded', init);

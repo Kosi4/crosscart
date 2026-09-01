@@ -25,10 +25,13 @@
       "js": [
         "shared/constants.js",
         "shared/currency.js",
+        "shared/storage.js",
+        "shared/lists.js",
         "content/detect.js",
         "content/agent-sites.js",
         "content/scrape.js",
         "content/nav-watch.js",
+        "content/picker.js",
         "content/content.js"
       ],
       "css": ["content/content.css"],

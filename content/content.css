@@ -4,23 +4,105 @@
   bottom: 24px !important;
   right: 24px !important;
   z-index: 2147483647 !important;
-  background: #2563eb !important;
+  background: linear-gradient(180deg, rgba(82, 82, 91, 0.88), rgba(63, 63, 70, 0.9)) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
   color: #ffffff !important;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
   font-size: 14px !important;
   font-weight: 600 !important;
-  padding: 12px 18px !important;
+  padding: 12px 20px !important;
   border-radius: 999px !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 3px rgba(0, 0, 0, 0.15), 0 8px 20px rgba(0, 0, 0, 0.2) !important;
   cursor: pointer !important;
-  transition: transform 0.15s ease, background 0.15s ease !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
 
 #crosscart-btn:hover {
   transform: translateY(-2px) !important;
-  background: #1d4ed8 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 6px rgba(0, 0, 0, 0.2), 0 12px 28px rgba(0, 0, 0, 0.25) !important;
 }
 
 #crosscart-btn.crosscart-saved {
-  background: #16a34a !important;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.9), rgba(21, 128, 61, 0.92)) !important;
+}
+
+#crosscart-picker {
+  all: initial;
+  position: fixed !important;
+  z-index: 2147483647 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  min-width: 220px !important;
+  padding: 14px !important;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.32)) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  border-radius: 20px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 1px 3px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.22) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+#crosscart-picker .crosscart-picker-title {
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  color: #18181b !important;
+  margin-bottom: 4px !important;
+}
+
+#crosscart-picker .crosscart-picker-default {
+  all: unset !important;
+  box-sizing: border-box !important;
+  display: block !important;
+  text-align: center !important;
+  padding: 9px 14px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+  background: linear-gradient(180deg, rgba(82, 82, 91, 0.9), rgba(63, 63, 70, 0.92)) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+}
+
+#crosscart-picker .crosscart-picker-default:hover {
+  transform: translateY(-1px) !important;
+}
+
+#crosscart-picker .crosscart-picker-divider {
+  font-size: 10.5px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  color: #52525b !important;
+  text-align: center !important;
+  margin: 6px 0 2px !important;
+}
+
+#crosscart-picker .crosscart-picker-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+}
+
+#crosscart-picker .crosscart-picker-chip {
+  all: unset !important;
+  box-sizing: border-box !important;
+  padding: 6px 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #18181b !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
+  cursor: pointer !important;
+  font-family: inherit !important;
+}
+
+#crosscart-picker .crosscart-picker-chip:hover {
+  background: rgba(255, 255, 255, 0.8) !important;
 }

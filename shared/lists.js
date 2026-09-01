@@ -1,7 +1,7 @@
 window.Crosscart = window.Crosscart || {};
 
 (function () {
-  const DEFAULT_LIST_NAME = 'Default';
+  const DEFAULT_LIST_NAME = 'General';
 
   async function loadLists() {
     const { storage, STORAGE_KEYS } = window.Crosscart;

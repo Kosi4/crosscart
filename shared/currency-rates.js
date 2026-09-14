@@ -38,6 +38,13 @@ window.Crosscart = window.Crosscart || {};
     return (num / fromRate) * toRate;
   }
 
+  function calcTotal(items, preferredCurrency, rates) {
+    return items.reduce((sum, item) => {
+      const converted = convertAmount(item.price, item.currency, preferredCurrency, rates);
+      return sum + (Number.isFinite(converted) ? converted * (item.quantity || 1) : 0);
+    }, 0);
+  }
+
   async function loadPreferences() {
     const { storage, STORAGE_KEYS } = window.Crosscart;
     const result = await storage.getStorage([STORAGE_KEYS.PREFERRED_CURRENCY]);
@@ -54,6 +61,7 @@ window.Crosscart = window.Crosscart || {};
     FALLBACK_RATES,
     fetchExchangeRates,
     convertAmount,
+    calcTotal,
     loadPreferences,
     savePreferredCurrency,
   };

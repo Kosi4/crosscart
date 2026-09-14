@@ -22,6 +22,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "exclude_matches": ["http://localhost/web/*"],
       "js": [
         "shared/constants.js",
         "shared/currency.js",
@@ -36,6 +37,11 @@
       ],
       "css": ["content/content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost/web/*"],
+      "js": ["shared/constants.js", "shared/storage.js", "content/web-bridge.js"],
+      "run_at": "document_start"
     }
   ]
 }

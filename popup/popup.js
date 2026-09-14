@@ -170,6 +170,7 @@
 
   async function init() {
     cacheEls();
+    await C.theme.init();
 
     const { lists, activeList } = await listsApi.loadLists();
     state.lists = lists;

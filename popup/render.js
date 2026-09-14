@@ -1,31 +1,8 @@
 window.Crosscart = window.Crosscart || {};
 
 (function () {
-  function escapeHtml(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  // Item URLs come from scraped pages, so only http(s) may become a live link —
-  // anything else (javascript:, data:, ...) renders as plain, unclickable markup.
-  function safeUrl(raw) {
-    try {
-      const url = new URL(raw);
-      return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : '';
-    } catch (e) {
-      return '';
-    }
-  }
-
-  function calcTotal(items, preferredCurrency, rates) {
-    const { convertAmount } = window.Crosscart.currencyRates;
-    return items.reduce((sum, item) => {
-      const converted = convertAmount(item.price, item.currency, preferredCurrency, rates);
-      return sum + (Number.isFinite(converted) ? converted * (item.quantity || 1) : 0);
-    }, 0);
-  }
+  const { escapeHtml, safeUrl } = window.Crosscart.dom;
+  const { calcTotal } = window.Crosscart.currencyRates;
 
   function grandTotals(lists, preferredCurrency, rates) {
     return Object.entries(lists).map(([name, items]) => ({

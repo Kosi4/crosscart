@@ -4,3 +4,11 @@ handoff.md
 data/
 graphify-out/
 skills-lock.json
+
+# Local tooling and design exports
+CLAUDE.md
+.claude/
+.serena/
+.gitattributes
+*.zip
+fresh-session-prompt.md

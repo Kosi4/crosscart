@@ -125,6 +125,16 @@ window.Crosscart = window.Crosscart || {};
     return data.session;
   }
 
+  async function createExtensionLink(accessToken) {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/extension-link`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${accessToken}` },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.token_hash) throw new Error(body.error || `Extension link failed (${res.status})`);
+    return body;
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -183,6 +193,7 @@ window.Crosscart = window.Crosscart || {};
     verifyEmailCode,
     signOut,
     onAuthChange,
+    createExtensionLink,
     listOrders,
     getOrder,
     placeOrder,

@@ -62,7 +62,9 @@
 
   // ---------- cart math ----------
 
+  // Checkout can cover one cart or every cart at once; the cart screen always shows one.
   function cartItems() {
+    if (state.screen === 'checkout' && state.checkoutAll) return Object.values(state.carts).flat();
     return state.carts[state.activeCart] || [];
   }
 
@@ -194,8 +196,15 @@
     let screen = location.hash.replace(/^#\//, '') || 'landing';
     if (screen !== 'landing' && screen !== 'signin' && !APP_SCREENS.includes(screen)) screen = 'landing';
 
+    // Already signed in: the sign-in page has nothing to offer, so go straight to the carts.
+    if (screen === 'signin' && state.session) {
+      setMode('real');
+      return go('carts');
+    }
+
     if (APP_SCREENS.includes(screen)) {
-      if (!state.mode) state.mode = sessionGet(MODE_KEY) || (state.session ? 'real' : null);
+      // A signed-in user reloading should land on their own carts, not a demo left over from earlier.
+      if (!state.mode) state.mode = state.session ? 'real' : sessionGet(MODE_KEY);
       if (!state.mode || (state.mode === 'real' && !state.session)) return go('signin');
       if ((screen === 'placing' || screen === 'confirm') && !state.order) return go('orders');
     }
@@ -205,7 +214,9 @@
 
     if (APP_SCREENS.includes(screen)) {
       await loadData();
-      if ((screen === 'cart' || screen === 'checkout') && !state.carts[state.activeCart]) return go('carts');
+      const hasItems = state.checkoutAll ? Object.values(state.carts).flat().length : state.carts[state.activeCart];
+      if (screen === 'cart' && !state.carts[state.activeCart]) return go('carts');
+      if (screen === 'checkout' && !hasItems) return go('carts');
       render();
     }
   }
@@ -220,22 +231,35 @@
     return (error && error.message) || 'Something went wrong. Try again.';
   }
 
-  async function handOffSession(session) {
-    if (!session || !(await storage.isAvailable())) return;
-    try {
-      await storage.sendSession(session);
-    } catch (e) {}
+  // The extension needs its own session (refresh tokens are single-use, so it can't share ours).
+  // A server function mints a one-time token for this account; the extension swaps it for a session.
+  let linking = null;
+
+  function linkExtension(session) {
+    if (!session || linking) return linking;
+    linking = (async () => {
+      if (!(await storage.isAvailable())) return;
+      const status = await storage.extensionStatus();
+      if (status.userId === session.user.id) return;
+      const { token_hash: tokenHash } = await api.createExtensionLink(session.access_token);
+      const result = await storage.linkExtension(tokenHash);
+      if (!result.ok) throw new Error(result.error || 'Extension link failed');
+    })()
+      .catch((error) => console.warn('[CrossCart] could not connect the extension:', error.message))
+      .finally(() => {
+        linking = null;
+      });
+    return linking;
   }
 
   function enterApp() {
     setMode('real');
     state.loadedMode = null;
-    handOffSession(state.session);
+    linkExtension(state.session);
     go('carts');
   }
 
-  // Only the session leaves the extension on sign-out. Clearing its cached lists waits for
-  // sync (Phase 3): until lists live on the server, clearing them would delete unsynced saves.
+  // The extension uploads anything unsynced before it clears its cached lists.
   async function leaveApp() {
     state.session = null;
     state.mode = null;
@@ -246,7 +270,7 @@
     } catch (e) {}
     if (await storage.isAvailable()) {
       try {
-        await storage.clearSession();
+        await storage.signOutExtension();
       } catch (e) {}
     }
     go('landing');
@@ -256,10 +280,21 @@
 
   const actions = {
     goLanding: () => go('landing'),
-    goSignIn: () => go('signin'),
+    goSignIn: () => {
+      if (!state.session) return go('signin');
+      setMode('real');
+      go('carts');
+    },
     goCarts: () => go('carts'),
-    goCart: () => go('cart'),
-    goCheckout: () => go('checkout'),
+    goCart: () => go(state.checkoutAll ? 'carts' : 'cart'),
+    goCheckout: () => {
+      state.checkoutAll = false;
+      go('checkout');
+    },
+    checkoutAll: () => {
+      state.checkoutAll = true;
+      go('checkout');
+    },
     goOrders: () => go('orders'),
 
     signInGoogle: async () => {
@@ -324,6 +359,7 @@
 
     openCart: (name) => {
       state.activeCart = name;
+      state.checkoutAll = false;
       go('cart');
     },
 
@@ -341,7 +377,7 @@
         domain: g.domain,
         amountUsd: goodsUsd(g.items) + api.storeInfo(g.domain).shipUsd,
       }));
-      state.order = api.placeOrder(state.activeCart, legs, totals.total);
+      state.order = api.placeOrder(state.checkoutAll ? 'All carts' : state.activeCart, legs, totals.total);
       state.form = {};
       go('placing');
       setTimeout(() => {
@@ -614,7 +650,7 @@
           <img src="../icons/icon48.png" alt="" style="width:26px;height:26px;border-radius:8px" />
           <div class="cc-brand">CrossCart</div>
           <button class="cc-btn cc-btn-glass cc-btn-inset" data-action="toggleTheme">${themeLabel()}</button>
-          <button class="cc-btn cc-btn-primary" data-action="goSignIn">Sign in</button>
+          <button class="cc-btn cc-btn-primary" data-action="goSignIn">${state.session ? 'Open my cart' : 'Sign in'}</button>
         </div>
 
         <div class="cc-hero">
@@ -736,8 +772,12 @@
     const totalPill = allItems.length
       ? `<div class="cc-pill cc-total-pill" role="status">All carts · ${fmt(goodsUsd(allItems))}</div>`
       : '';
+    const checkoutAllButton =
+      Object.values(state.carts).filter((items) => items.length).length > 1
+        ? `<button class="cc-btn cc-btn-primary cc-checkout-all" data-action="checkoutAll">Check out all carts · ${plural(allItems.length, 'item')}</button>`
+        : '';
 
-    return `${notice}<div class="cc-grid-2">${cards}</div>${totalPill}`;
+    return `${notice}<div class="cc-grid-2">${cards}</div>${totalPill}${checkoutAllButton}`;
   }
 
   function cartView(totals) {
@@ -878,7 +918,7 @@
           ${summaryRows(totals)}
           <div class="cc-summary-total cc-big"><div class="cc-grow">Total</div><div>${fmt(totals.total)}</div></div>
           <button class="cc-btn cc-btn-block cc-btn-lg cc-btn-primary" data-action="placeOrders" ${totals.groups.length ? '' : 'disabled'}>Place ${totals.groups.length} orders</button>
-          <button class="cc-btn cc-btn-block cc-btn-plain" data-action="goCart">Back to cart</button>
+          <button class="cc-btn cc-btn-block cc-btn-plain" data-action="goCart">${state.checkoutAll ? 'Back to carts' : 'Back to cart'}</button>
         </div>
       </div>`;
   }
@@ -980,7 +1020,10 @@
     const titles = {
       carts: ['Your carts', `${itemCount} items saved across ${Object.keys(state.carts).length} lists`],
       cart: [state.activeCart || '', `${plural(totals.groups.length, 'store')} · ${plural(totals.chosen.length, 'item')} selected`],
-      checkout: ['Checkout', `One payment, ${plural(totals.groups.length, 'store order')}`],
+      checkout: [
+        state.checkoutAll ? 'Check out all carts' : 'Checkout',
+        `One payment, ${plural(totals.groups.length, 'store order')}`,
+      ],
       placing: ['Checkout', 'Placing orders'],
       confirm: ['Order placed', 'CrossCart paid each store on your behalf'],
       orders: ['Orders', 'Every store order CrossCart has placed for you'],
@@ -1007,7 +1050,8 @@
         ? `<div class="cc-saved-card">
               <div class="cc-eyebrow">Saved card</div>
               <div style="font-weight:600;margin-top:6px">Visa •••• 4412</div>
-            </div>`
+            </div>
+            ${state.session ? '<button class="cc-btn cc-btn-plain" data-action="goSignIn">Back to my carts</button>' : ''}`
         : `<div class="cc-saved-card">
               <div class="cc-eyebrow">Signed in</div>
               <div class="cc-ellipsis" style="margin-top:6px">${esc((state.session && state.session.user.email) || '')}</div>
@@ -1096,7 +1140,7 @@
 
   api.onAuthChange((event, session) => {
     state.session = session;
-    if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) handOffSession(session);
+    if (session && event === 'SIGNED_IN') linkExtension(session);
     if (event === 'SIGNED_OUT') leaveApp();
   });
 
@@ -1116,5 +1160,6 @@
       return go('signin');
     }
     route();
+    linkExtension(state.session);
   })();
 })();

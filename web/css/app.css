@@ -280,6 +280,15 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   z-index: 5;
 }
 
+.cc-checkout-all {
+  position: fixed;
+  right: 30px;
+  bottom: 24px;
+  z-index: 5;
+  padding: 10px 20px;
+  font-size: 13.5px;
+}
+
 .cc-notice { padding: 20px 22px; margin-bottom: 14px; }
 
 /* Carts dashboard */
@@ -521,5 +530,6 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   .cc-sidenav { flex-direction: row; }
   .cc-sidefoot { display: none; }
   .cc-total-pill { left: 16px; bottom: 16px; }
+  .cc-checkout-all { right: 16px; bottom: 16px; }
   .cc-steps, .cc-grid-2, .cc-two-col, .cc-two-col.cc-wide-side { grid-template-columns: 1fr; }
 }

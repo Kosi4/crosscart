@@ -171,6 +171,8 @@
   async function init() {
     cacheEls();
     await C.theme.init();
+    // Pull changes from other devices whenever the popup opens; results arrive via storage change events.
+    chrome.runtime.sendMessage({ type: 'syncNow' }).catch(() => {});
 
     const { lists, activeList } = await listsApi.loadLists();
     state.lists = lists;

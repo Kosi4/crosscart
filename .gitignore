@@ -5,6 +5,9 @@ data/
 graphify-out/
 skills-lock.json
 
+# Obsidian vault (personal second brain; keep out of the code repo unless decided otherwise)
+Crosscart/
+
 # Local tooling and design exports
 CLAUDE.md
 .claude/

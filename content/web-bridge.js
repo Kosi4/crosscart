@@ -36,30 +36,23 @@
       const data = allowedOnly(msg.data);
       if (Object.keys(data).length) await storage.setStorage(data);
       post({ type: 'result', id: msg.id, data: {} });
-    } else if (msg.type === 'setSession') {
-      // Write-only: the session is never in ALLOWED, so pages can hand it over but never read it back.
-      const s = msg.session;
-      const valid =
-        s &&
-        typeof s.access_token === 'string' &&
-        typeof s.refresh_token === 'string' &&
-        Number.isFinite(s.expires_at) &&
-        s.user &&
-        typeof s.user.id === 'string';
-      if (valid) {
-        await storage.setStorage({
-          [STORAGE_KEYS.AUTH_SESSION]: {
-            access_token: s.access_token,
-            refresh_token: s.refresh_token,
-            expires_at: s.expires_at,
-            user: { id: s.user.id, email: typeof s.user.email === 'string' ? s.user.email : null },
-          },
-        });
+    } else if (msg.type === 'extensionStatus' || msg.type === 'linkExtension' || msg.type === 'signOut') {
+      // The service worker owns the extension's session; the page only ever sees the account id.
+      const request =
+        msg.type === 'linkExtension'
+          ? { type: 'linkExtension', tokenHash: typeof msg.tokenHash === 'string' ? msg.tokenHash : '' }
+          : { type: msg.type };
+      let response;
+      try {
+        response = await chrome.runtime.sendMessage(request);
+      } catch (e) {
+        response = { ok: false, error: 'Extension background unavailable' };
       }
-      post({ type: 'result', id: msg.id, data: {} });
-    } else if (msg.type === 'clearSession') {
-      await storage.removeStorage([STORAGE_KEYS.AUTH_SESSION]);
-      post({ type: 'result', id: msg.id, data: {} });
+      post({
+        type: 'result',
+        id: msg.id,
+        data: { ok: Boolean(response && response.ok), userId: (response && response.userId) || null, error: response && response.error },
+      });
     }
   });
 

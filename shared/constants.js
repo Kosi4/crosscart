@@ -7,6 +7,7 @@ window.Crosscart.STORAGE_KEYS = {
   EXCHANGE_RATES: 'exchangeRates',
   THEME: 'theme',
   AUTH_SESSION: 'authSession',
+  SYNC_STATE: 'syncState',
 };
 
 window.Crosscart.SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'ZAR', 'JPY', 'CAD', 'AUD', 'INR'];

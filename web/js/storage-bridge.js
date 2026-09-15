@@ -6,6 +6,8 @@ window.Crosscart = window.Crosscart || {};
   const TO_EXT = 'crosscart-web';
   const FROM_EXT = 'crosscart-ext';
   const TIMEOUT_MS = 1500;
+  // A reload leaves the service worker asleep; the first wake-up can outrun the plain TIMEOUT_MS.
+  const STATUS_TIMEOUT_MS = 5000;
 
   let nextId = 0;
   const pending = new Map();
@@ -40,7 +42,7 @@ window.Crosscart = window.Crosscart || {};
   ]);
   send({ type: 'ping' });
 
-  async function request(msg) {
+  async function request(msg, timeoutMs = TIMEOUT_MS) {
     if (!(await detected)) throw new Error('CrossCart extension not detected');
     const id = ++nextId;
     return new Promise((resolve, reject) => {
@@ -48,9 +50,12 @@ window.Crosscart = window.Crosscart || {};
       send({ ...msg, id });
       setTimeout(() => {
         if (pending.delete(id)) reject(new Error('CrossCart extension did not respond'));
-      }, TIMEOUT_MS);
+      }, timeoutMs);
     });
   }
+
+  // Linking and sign-out wait on the network and a full sync, so they get longer than storage reads.
+  const NETWORK_TIMEOUT_MS = 20000;
 
   window.Crosscart.storage = {
     getStorage: (keys) => request({ type: 'get', keys: Array.isArray(keys) ? keys : [keys] }),
@@ -60,16 +65,8 @@ window.Crosscart = window.Crosscart || {};
       return () => listeners.delete(callback);
     },
     isAvailable: () => detected,
-    sendSession: (session) =>
-      request({
-        type: 'setSession',
-        session: {
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-          expires_at: session.expires_at,
-          user: { id: session.user.id, email: session.user.email },
-        },
-      }).then(() => undefined),
-    clearSession: () => request({ type: 'clearSession' }).then(() => undefined),
+    extensionStatus: () => request({ type: 'extensionStatus' }, STATUS_TIMEOUT_MS),
+    linkExtension: (tokenHash) => request({ type: 'linkExtension', tokenHash }, NETWORK_TIMEOUT_MS),
+    signOutExtension: () => request({ type: 'signOut' }, NETWORK_TIMEOUT_MS),
   };
 })();

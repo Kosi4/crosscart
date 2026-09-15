@@ -13,6 +13,12 @@ window.Crosscart = window.Crosscart || {};
     });
   }
 
+  function removeStorage(keys) {
+    return new Promise((resolve) => {
+      chrome.storage.local.remove(keys, resolve);
+    });
+  }
+
   function subscribeToChanges(callback) {
     const listener = (changes, area) => {
       if (area !== 'local') return;
@@ -22,5 +28,5 @@ window.Crosscart = window.Crosscart || {};
     return () => chrome.storage.onChanged.removeListener(listener);
   }
 
-  window.Crosscart.storage = { getStorage, setStorage, subscribeToChanges };
+  window.Crosscart.storage = { getStorage, setStorage, removeStorage, subscribeToChanges };
 })();

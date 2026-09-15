@@ -9,6 +9,8 @@
   const SYMBOLS = { USD: '$', EUR: '€', GBP: '£', ZAR: 'R', JPY: '¥', CAD: 'CA$', AUD: 'A$', INR: '₹' };
   const APP_SCREENS = ['carts', 'cart', 'checkout', 'placing', 'confirm', 'orders'];
   const RATES_MAX_AGE_MS = 1000 * 60 * 60;
+  // 'link' until a custom SMTP sender lets Supabase's templates send {{ .Token }}; then 'code'.
+  const EMAIL_SIGN_IN = 'link';
 
   const state = {
     screen: 'landing',
@@ -23,6 +25,8 @@
     selected: {},
     form: {},
     order: null,
+    session: null,
+    auth: { step: 'email', sending: false, error: '' },
   };
 
   const root = document.getElementById('app');
@@ -47,6 +51,10 @@
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   // Locale month names vary ("Sept" in en-GB); the design uses fixed three-letter months.
+  function plural(count, word) {
+    return `${count} ${count === 1 ? word : word + 's'}`;
+  }
+
   function fmtDate(iso) {
     const d = new Date(iso);
     return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
@@ -74,9 +82,10 @@
   function groupByStore(items) {
     const groups = [];
     items.forEach((item) => {
-      let group = groups.find((g) => g.domain === item.domain);
+      const domain = api.storeKey(item.domain);
+      let group = groups.find((g) => g.domain === domain);
       if (!group) {
-        group = { domain: item.domain, items: [] };
+        group = { domain, items: [] };
         groups.push(group);
       }
       group.items.push(item);
@@ -84,15 +93,30 @@
     return groups;
   }
 
-  // Out-of-stock items stay selectable (the warning explains they're skipped) but are never charged.
+  // Selected items count toward totals even when flagged out of stock; the flag is a warning, not a removal.
   function checkoutTotals() {
     const chosen = cartItems().filter(isSelected);
-    const charged = chosen.filter((item) => !api.checkItem(item).oos);
-    const groups = groupByStore(charged);
-    const goods = goodsUsd(charged);
+    const groups = groupByStore(chosen);
+    const goods = goodsUsd(chosen);
     const shipping = groups.reduce((sum, g) => sum + api.storeInfo(g.domain).shipUsd, 0);
     const fee = goods * FEE_RATE;
-    return { chosen, charged, groups, goods, shipping, fee, total: goods + shipping + fee };
+    return { chosen, groups, goods, shipping, fee, total: goods + shipping + fee };
+  }
+
+  // Scraped image URLs are sometimes http://, which an https page (and our CSP) won't load.
+  function imageSrc(raw) {
+    const url = safeUrl(raw);
+    return url ? url.replace(/^http:\/\//i, 'https://') : '';
+  }
+
+  function reorderStore(domain, reordered) {
+    const items = cartItems();
+    const next = [...items];
+    let i = 0;
+    items.forEach((item, index) => {
+      if (api.storeKey(item.domain) === domain) next[index] = reordered[i++];
+    });
+    commitCarts({ ...state.carts, [state.activeCart]: next });
   }
 
   // ---------- data ----------
@@ -171,8 +195,8 @@
     if (screen !== 'landing' && screen !== 'signin' && !APP_SCREENS.includes(screen)) screen = 'landing';
 
     if (APP_SCREENS.includes(screen)) {
-      if (!state.mode) state.mode = sessionGet(MODE_KEY) || (api.getSession() ? 'real' : null);
-      if (!state.mode) return go('signin');
+      if (!state.mode) state.mode = sessionGet(MODE_KEY) || (state.session ? 'real' : null);
+      if (!state.mode || (state.mode === 'real' && !state.session)) return go('signin');
       if ((screen === 'placing' || screen === 'confirm') && !state.order) return go('orders');
     }
 
@@ -186,6 +210,48 @@
     }
   }
 
+  // ---------- auth ----------
+
+  function authMessage(error) {
+    const text = String((error && error.message) || '').toLowerCase();
+    if ((error && error.status === 429) || text.includes('rate limit')) return 'Too many attempts. Wait a minute and try again.';
+    if (text.includes('expired') || text.includes('invalid') || text.includes('token')) return 'That code is wrong or has expired. Request a new one.';
+    if (text.includes('provider is not enabled') || text.includes('unsupported provider')) return "Google sign-in isn't set up yet. Use email for now.";
+    return (error && error.message) || 'Something went wrong. Try again.';
+  }
+
+  async function handOffSession(session) {
+    if (!session || !(await storage.isAvailable())) return;
+    try {
+      await storage.sendSession(session);
+    } catch (e) {}
+  }
+
+  function enterApp() {
+    setMode('real');
+    state.loadedMode = null;
+    handOffSession(state.session);
+    go('carts');
+  }
+
+  // Only the session leaves the extension on sign-out. Clearing its cached lists waits for
+  // sync (Phase 3): until lists live on the server, clearing them would delete unsynced saves.
+  async function leaveApp() {
+    state.session = null;
+    state.mode = null;
+    state.loadedMode = null;
+    state.carts = {};
+    try {
+      sessionStorage.removeItem(MODE_KEY);
+    } catch (e) {}
+    if (await storage.isAvailable()) {
+      try {
+        await storage.clearSession();
+      } catch (e) {}
+    }
+    go('landing');
+  }
+
   // ---------- actions ----------
 
   const actions = {
@@ -196,11 +262,58 @@
     goCheckout: () => go('checkout'),
     goOrders: () => go('orders'),
 
-    signIn: (provider) => {
-      api.signIn(provider);
-      setMode('real');
-      go('carts');
+    signInGoogle: async () => {
+      state.auth.error = '';
+      try {
+        await api.signInWithGoogle();
+      } catch (e) {
+        state.auth.error = authMessage(e);
+        render();
+      }
     },
+
+    sendCode: async () => {
+      const email = (state.form.authEmail || '').trim();
+      if (!email) return;
+      state.auth = { ...state.auth, sending: true, error: '' };
+      render();
+      try {
+        await api.sendEmailSignIn(email);
+        state.auth.step = EMAIL_SIGN_IN;
+        state.form.authCode = '';
+      } catch (e) {
+        state.auth.error = authMessage(e);
+      }
+      state.auth.sending = false;
+      render();
+    },
+
+    verifyCode: async () => {
+      const code = (state.form.authCode || '').replace(/\D/g, '');
+      if (code.length !== 6) {
+        state.auth.error = 'Enter the 6-digit code from the email.';
+        render();
+        return;
+      }
+      state.auth = { ...state.auth, sending: true, error: '' };
+      render();
+      try {
+        state.session = await api.verifyEmailCode((state.form.authEmail || '').trim(), code);
+        state.auth = { step: 'email', sending: false, error: '' };
+        state.form.authCode = '';
+        enterApp();
+      } catch (e) {
+        state.auth = { ...state.auth, sending: false, error: authMessage(e) };
+        render();
+      }
+    },
+
+    changeEmail: () => {
+      state.auth = { step: 'email', sending: false, error: '' };
+      render();
+    },
+
+    signOut: () => api.signOut(),
 
     demo: () => {
       setMode('demo');
@@ -282,6 +395,201 @@
     if (handler) handler(el);
   });
 
+  // ---------- drag to reorder ----------
+  // Pointer-driven rather than HTML5 drag-and-drop: native DnD can't lift the panel or animate
+  // neighbours, and it never starts from the product link, which must stay clickable.
+
+  const DRAG_THRESHOLD_PX = 5;
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let drag = null;
+  let suppressClick = false;
+  let focusRowId = null;
+  let focusStore = null;
+
+  // Store order is simply the order of their items in the list, so moving a store moves its items as a block.
+  function moveStore(from, to) {
+    const groups = groupByStore(cartItems());
+    if (from === to || to < 0 || to >= groups.length) return;
+    const [moved] = groups.splice(from, 1);
+    groups.splice(to, 0, moved);
+    commitCarts({ ...state.carts, [state.activeCart]: groups.flatMap((g) => g.items) });
+  }
+
+  function moveInStore(domain, from, to) {
+    const group = groupByStore(cartItems()).find((g) => g.domain === domain);
+    if (!group || from === to || to < 0 || to >= group.items.length) return;
+    const reordered = [...group.items];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    reorderStore(domain, reordered);
+  }
+
+  function startDrag() {
+    const rows = [...drag.container.querySelectorAll(drag.itemSelector)];
+    drag.rows = rows;
+    drag.from = rows.indexOf(drag.row);
+    drag.to = drag.from;
+    drag.slots = rows.map((r) => {
+      const box = r.getBoundingClientRect();
+      return { top: box.top, height: box.height };
+    });
+    // Store cards sit in a flex column with a gap; product panels touch. Neighbours must clear both.
+    drag.gap = rows.length > 1 ? Math.max(0, drag.slots[1].top - (drag.slots[0].top + drag.slots[0].height)) : 0;
+    drag.active = true;
+    drag.container.classList.add('cc-sorting');
+    drag.row.classList.add('cc-lifted');
+    document.body.classList.add('cc-dragging-active');
+  }
+
+  function updateDrag(dy) {
+    const { slots, from, row, rows } = drag;
+    const last = slots[slots.length - 1];
+    const minDy = slots[0].top - slots[from].top;
+    const maxDy = last.top + last.height - (slots[from].top + slots[from].height);
+    const y = Math.max(minDy, Math.min(maxDy, dy));
+    const center = slots[from].top + slots[from].height / 2 + y;
+    const to = slots.filter((s, i) => i !== from && s.top + s.height / 2 < center).length;
+    const lift = slots[from].height + drag.gap;
+
+    row.style.transform = `translateY(${y}px) scale(1.02)`;
+    rows.forEach((r, i) => {
+      if (i === from) return;
+      let shift = 0;
+      if (from < to && i > from && i <= to) shift = -lift;
+      if (to < from && i >= to && i < from) shift = lift;
+      r.style.transform = shift ? `translateY(${shift}px)` : '';
+    });
+    drag.to = to;
+  }
+
+  function endDrag() {
+    const { row, rows, from, to, slots, container, onDrop } = drag;
+    const offset =
+      to > from ? slots[to].top + slots[to].height - (slots[from].top + slots[from].height) : slots[to].top - slots[from].top;
+
+    // The pointerup that ends a drag is followed by a click on the link underneath; swallow it.
+    suppressClick = true;
+    setTimeout(() => (suppressClick = false), 300);
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      document.body.classList.remove('cc-dragging-active');
+      if (to === from) {
+        rows.forEach((r) => (r.style.transform = ''));
+        row.classList.remove('cc-lifted', 'cc-settling');
+        container.classList.remove('cc-sorting');
+        return;
+      }
+      onDrop(from, to);
+    };
+
+    row.classList.add('cc-settling');
+    row.style.transform = `translateY(${offset}px) scale(1)`;
+    if (reduceMotion.matches) return finish();
+    row.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 260);
+  }
+
+  function cancelDrag() {
+    if (drag && drag.active) {
+      drag.rows.forEach((r) => (r.style.transform = ''));
+      drag.row.classList.remove('cc-lifted', 'cc-settling');
+      drag.container.classList.remove('cc-sorting');
+      document.body.classList.remove('cc-dragging-active');
+    }
+    drag = null;
+  }
+
+  // ponytail: mouse/pen only; touch reordering needs a long-press handle so it doesn't fight page scrolling
+  root.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.pointerType === 'touch' || drag) return;
+    const base = { startY: event.clientY, pointerId: event.pointerId, active: false };
+    const row = event.target.closest('[data-store] > .cc-row');
+    if (row) {
+      if (event.target.closest('input, button, select, textarea')) return;
+      const domain = row.parentElement.dataset.store;
+      drag = { ...base, row, container: row.parentElement, itemSelector: ':scope > .cc-row', onDrop: (f, t) => moveInStore(domain, f, t) };
+      return;
+    }
+    // The store header is also the collapse toggle; a plain click still toggles, moving past the threshold drags.
+    const head = event.target.closest('.cc-stack > .cc-group > .cc-group-head');
+    if (head) {
+      const group = head.parentElement;
+      drag = { ...base, row: group, container: group.parentElement, itemSelector: ':scope > .cc-group', onDrop: moveStore };
+    }
+  });
+
+  window.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const dy = event.clientY - drag.startY;
+    if (!drag.active) {
+      if (Math.abs(dy) < DRAG_THRESHOLD_PX) return;
+      startDrag();
+    }
+    event.preventDefault();
+    updateDrag(dy);
+  });
+
+  window.addEventListener('pointerup', (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    if (drag.active) endDrag();
+    drag = null;
+  });
+
+  window.addEventListener('pointercancel', cancelDrag);
+
+  root.addEventListener(
+    'click',
+    (event) => {
+      if (!suppressClick) return;
+      suppressClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    true
+  );
+
+  root.addEventListener('keydown', (event) => {
+    if (!event.altKey || (event.key !== 'ArrowUp' && event.key !== 'ArrowDown')) return;
+    const step = event.key === 'ArrowUp' ? -1 : 1;
+    const target = event.target;
+
+    if (target.matches('[data-store] > .cc-row')) {
+      event.preventDefault();
+      const from = Number(target.dataset.index);
+      focusRowId = target.dataset.id;
+      moveInStore(target.parentElement.dataset.store, from, from + step);
+    } else if (target.matches('.cc-stack > .cc-group > .cc-group-head')) {
+      event.preventDefault();
+      const groups = [...target.closest('.cc-stack').children];
+      focusStore = target.dataset.arg;
+      moveStore(groups.indexOf(target.parentElement), groups.indexOf(target.parentElement) + step);
+    }
+  });
+
+  // Stores block hotlinking or rename files; a dead product image falls back to the empty tile.
+  root.addEventListener(
+    'error',
+    (event) => {
+      if (event.target instanceof HTMLImageElement && event.target.classList.contains('cc-thumb')) {
+        const tile = document.createElement('div');
+        tile.className = 'cc-thumb';
+        event.target.replaceWith(tile);
+      }
+    },
+    true
+  );
+
+  root.addEventListener('submit', (event) => {
+    const form = event.target.closest('[data-submit]');
+    if (!form) return;
+    event.preventDefault();
+    const action = actions[form.dataset.submit];
+    if (action) action();
+  });
+
   // Checkout fields aren't state-driven, but re-renders (currency, live list sync) must not wipe what was typed.
   root.addEventListener('input', (event) => {
     const el = event.target;
@@ -334,6 +642,43 @@
       </div>`;
   }
 
+  function signInBody() {
+    const { step, sending, error } = state.auth;
+    const email = state.form.authEmail || '';
+    const errorLine = error ? `<div class="cc-auth-error" role="alert">${esc(error)}</div>` : '';
+
+    if (step === 'link') {
+      return `
+          <div class="cc-signin-actions">
+            <div class="cc-muted">We emailed a sign-in link to <strong>${esc(email)}</strong>. Open it in this browser to finish signing in.</div>
+            <button type="button" class="cc-btn cc-btn-glass" data-action="sendCode" ${sending ? 'disabled' : ''}>${sending ? 'Sending…' : 'Send the link again'}</button>
+            <button type="button" class="cc-btn cc-btn-plain" data-action="changeEmail">Use a different email</button>
+          </div>
+          ${errorLine}`;
+    }
+
+    if (step === 'code') {
+      return `
+          <form class="cc-signin-actions" data-submit="verifyCode">
+            <div class="cc-muted">Enter the 6-digit code we sent to <strong>${esc(email)}</strong></div>
+            <input class="cc-auth-input" data-field="authCode" value="${esc(state.form.authCode || '')}" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code" aria-label="Verification code" required />
+            <button type="submit" class="cc-btn cc-btn-primary" ${sending ? 'disabled' : ''}>${sending ? 'Checking…' : 'Verify code'}</button>
+            <button type="button" class="cc-btn cc-btn-plain" data-action="changeEmail">Use a different email</button>
+          </form>
+          ${errorLine}`;
+    }
+
+    return `
+          <div class="cc-signin-actions">
+            <button type="button" class="cc-btn cc-btn-surface" data-action="signInGoogle">Continue with Google</button>
+          </div>
+          <form class="cc-signin-actions cc-signin-email" data-submit="sendCode">
+            <input class="cc-auth-input" type="email" data-field="authEmail" value="${esc(email)}" autocomplete="email" placeholder="you@example.com" aria-label="Email address" required />
+            <button type="submit" class="cc-btn cc-btn-primary" ${sending ? 'disabled' : ''}>${sending ? 'Sending code…' : 'Continue with email'}</button>
+          </form>
+          ${errorLine}`;
+  }
+
   function signInView() {
     return `
       <div class="cc-center">
@@ -341,10 +686,7 @@
           <img src="../icons/icon128.png" alt="" style="width:44px;height:44px;border-radius:12px" />
           <div class="cc-signin-title">Sign in to CrossCart</div>
           <div class="cc-muted" style="margin-top:8px">Your saved lists follow you from the extension.</div>
-          <div class="cc-signin-actions">
-            <button class="cc-btn cc-btn-surface" data-action="signIn" data-arg="google">Continue with Google</button>
-            <button class="cc-btn cc-btn-primary" data-action="signIn" data-arg="apple">Continue with Apple</button>
-          </div>
+          ${signInBody()}
           <div class="cc-faint" style="font-size:12px;margin-top:22px;text-wrap:pretty">By continuing you let CrossCart place orders on stores on your behalf.</div>
         </div>
       </div>`;
@@ -352,8 +694,8 @@
 
   function summaryRows(totals) {
     const rows = [
-      [`Items (${totals.charged.length})`, fmt(totals.goods)],
-      [`Shipping · ${totals.groups.length} stores`, fmt(totals.shipping)],
+      [`Items (${totals.chosen.length})`, fmt(totals.goods)],
+      [`Shipping · ${plural(totals.groups.length, 'store')}`, fmt(totals.shipping)],
       ['CrossCart fee (2.5%)', fmt(totals.fee)],
     ];
     return `<div class="cc-summary-rows">${rows
@@ -390,7 +732,12 @@
       })
       .join('');
 
-    return `${notice}<div class="cc-grid-2">${cards}</div>`;
+    const allItems = Object.values(state.carts).flat();
+    const totalPill = allItems.length
+      ? `<div class="cc-pill cc-total-pill" role="status">All carts · ${fmt(goodsUsd(allItems))}</div>`
+      : '';
+
+    return `${notice}<div class="cc-grid-2">${cards}</div>${totalPill}`;
   }
 
   function cartView(totals) {
@@ -399,22 +746,29 @@
         const store = api.storeInfo(group.domain);
         const open = !state.collapsed[group.domain];
         const rows = group.items
-          .map((item) => {
+          .map((item, index) => {
             const check = api.checkItem(item);
             const flag = check.oos
               ? 'Out of stock at this store'
               : check.wasPrice
                 ? `Price rose from ${fmt(currencyRates.convertAmount(check.wasPrice, item.currency || 'USD', 'USD', state.rates))} since you saved it`
                 : '';
-            const img = safeUrl(item.image);
+            const img = imageSrc(item.image);
+            const href = safeUrl(item.url);
+            const body = `
+                ${img ? `<img class="cc-thumb" src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" draggable="false" />` : '<div class="cc-thumb"></div>'}
+                <div class="cc-grow">
+                  <div class="cc-ellipsis cc-item-title">${esc(item.title)}</div>
+                  ${flag ? `<div class="cc-flag">${flag}</div>` : ''}
+                </div>`;
             return `
-            <div class="cc-row">
+            <div class="cc-row" data-index="${index}" data-id="${esc(item.id)}" tabindex="0" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" aria-roledescription="Reorderable product">
               <input type="checkbox" ${isSelected(item) ? 'checked' : ''} data-change="select" data-arg="${esc(item.id)}" aria-label="Select ${esc(item.title)}" />
-              ${img ? `<img class="cc-thumb" src="${esc(img)}" alt="" />` : '<div class="cc-thumb"></div>'}
-              <div class="cc-grow">
-                <div class="cc-ellipsis">${esc(item.title)}</div>
-                ${flag ? `<div class="cc-flag">${flag}</div>` : ''}
-              </div>
+              ${
+                href
+                  ? `<a class="cc-item-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" draggable="false" title="Open product page">${body}</a>`
+                  : `<div class="cc-item-link">${body}</div>`
+              }
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}</div>
               <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}">Remove</button>
@@ -423,7 +777,7 @@
           .join('');
         return `
         <div class="cc-card cc-group">
-          <button class="cc-group-head" data-action="toggleGroup" data-arg="${esc(group.domain)}" aria-expanded="${open}">
+          <button class="cc-group-head" data-action="toggleGroup" data-arg="${esc(group.domain)}" aria-expanded="${open}" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" title="Click to collapse · drag to reorder stores">
             <div class="cc-grow">
               <div class="cc-group-store">${esc(store.name)}</div>
               <div class="cc-group-domain">${esc(group.domain)}</div>
@@ -431,7 +785,7 @@
             <div style="font-weight:700">${fmt(goodsUsd(group.items.filter(isSelected)))}</div>
             <div class="cc-caret">${open ? '▾' : '▸'}</div>
           </button>
-          ${open ? `<div>${rows}</div>` : ''}
+          ${open ? `<div data-store="${esc(group.domain)}">${rows}</div>` : ''}
         </div>`;
       })
       .join('');
@@ -443,7 +797,7 @@
           <div class="cc-summary-title">Summary</div>
           ${summaryRows(totals)}
           <div class="cc-summary-total"><div class="cc-grow">Total</div><div>${fmt(totals.total)}</div></div>
-          <button class="cc-btn cc-btn-block cc-btn-primary" data-action="goCheckout" ${totals.charged.length ? '' : 'disabled'}>Check out ${totals.chosen.length} items</button>
+          <button class="cc-btn cc-btn-block cc-btn-primary" data-action="goCheckout" ${totals.chosen.length ? '' : 'disabled'}>Check out ${totals.chosen.length} items</button>
           <div class="cc-note">Orders are placed store by store. Unselected items stay in the list.</div>
         </div>
       </div>`;
@@ -461,7 +815,7 @@
         <div class="cc-line">
           <div class="cc-grow">
             <div style="font-weight:600">${esc(store.name)}</div>
-            <div class="cc-line-meta">${g.items.length} items · ${fmt(store.shipUsd)} shipping</div>
+            <div class="cc-line-meta">${plural(g.items.length, 'item')} · ${fmt(store.shipUsd)} shipping</div>
           </div>
           <div style="font-weight:700">${fmt(goodsUsd(g.items) + store.shipUsd)}</div>
         </div>`;
@@ -477,7 +831,7 @@
       }
     });
     totals.chosen.forEach((item) => {
-      if (api.checkItem(item).oos) warnings.push(`${esc(item.title)} is out of stock and will be skipped.`);
+      if (api.checkItem(item).oos) warnings.push(`${esc(item.title)} is marked out of stock at this store and may not be ordered.`);
     });
 
     return `
@@ -535,7 +889,7 @@
       <div class="cc-placing cc-glass">
         <div class="cc-spinner"></div>
         <div style="font-weight:700;font-size:20px;letter-spacing:-0.02em;margin-top:22px">Placing your orders</div>
-        <div class="cc-muted" style="margin-top:8px;text-wrap:pretty">CrossCart is checking out on ${order.legs.length} stores with your card. This takes about a minute — you can leave this page.</div>
+        <div class="cc-muted" style="margin-top:8px;text-wrap:pretty">CrossCart is checking out on ${plural(order.legs.length, 'store')} with your card. This takes about a minute — you can leave this page.</div>
         <div style="font-weight:700;font-size:17px;margin-top:22px">${fmt(order.totalUsd)} charged</div>
       </div>`;
   }
@@ -610,7 +964,7 @@
         <div class="cc-card cc-order">
           <div class="cc-order-head">
             <div style="font-weight:700;font-size:15px">${esc(order.id)}</div>
-            <div class="cc-muted cc-grow" style="font-size:13px">${fmtDate(order.date)} · ${order.legs.length} stores</div>
+            <div class="cc-muted cc-grow" style="font-size:13px">${fmtDate(order.date)} · ${plural(order.legs.length, 'store')}</div>
             <div style="font-weight:700">${fmt(order.totalUsd)}</div>
           </div>
           ${legs}
@@ -625,8 +979,8 @@
     const itemCount = Object.values(state.carts).flat().length;
     const titles = {
       carts: ['Your carts', `${itemCount} items saved across ${Object.keys(state.carts).length} lists`],
-      cart: [state.activeCart || '', `${totals.groups.length} stores · ${totals.chosen.length} items selected`],
-      checkout: ['Checkout', `One payment, ${totals.groups.length} store orders`],
+      cart: [state.activeCart || '', `${plural(totals.groups.length, 'store')} · ${plural(totals.chosen.length, 'item')} selected`],
+      checkout: ['Checkout', `One payment, ${plural(totals.groups.length, 'store order')}`],
       placing: ['Checkout', 'Placing orders'],
       confirm: ['Order placed', 'CrossCart paid each store on your behalf'],
       orders: ['Orders', 'Every store order CrossCart has placed for you'],
@@ -647,7 +1001,18 @@
       ['orders', 'Orders', 'goOrders'],
       ['landing', 'About', 'goLanding'],
     ];
-    const session = api.getSession();
+    // The saved card belongs to the demo's checkout preview; real accounts have no payments yet.
+    const sideFoot =
+      state.mode === 'demo'
+        ? `<div class="cc-saved-card">
+              <div class="cc-eyebrow">Saved card</div>
+              <div style="font-weight:600;margin-top:6px">Visa •••• 4412</div>
+            </div>`
+        : `<div class="cc-saved-card">
+              <div class="cc-eyebrow">Signed in</div>
+              <div class="cc-ellipsis" style="margin-top:6px">${esc((state.session && state.session.user.email) || '')}</div>
+            </div>
+            <button class="cc-btn cc-btn-plain" data-action="signOut">Sign out</button>`;
 
     return `
       <div class="cc-shell">
@@ -665,10 +1030,7 @@
               .join('')}
           </nav>
           <div class="cc-sidefoot">
-            <div class="cc-saved-card">
-              <div class="cc-eyebrow">Saved card</div>
-              <div style="font-weight:600;margin-top:6px">${esc((session && session.card) || 'Visa •••• 4412')}</div>
-            </div>
+            ${sideFoot}
             <button class="cc-btn cc-btn-glass cc-btn-flat" data-action="toggleTheme">${themeLabel()}</button>
           </div>
         </aside>
@@ -679,7 +1041,7 @@
               <div class="cc-pagetitle">${esc(title)}</div>
               <div class="cc-muted" style="margin-top:2px">${esc(sub)}</div>
             </div>
-            <select class="cc-select" data-change="currency" aria-label="Currency">
+            <select class="cc-pill cc-select" data-change="currency" aria-label="Currency">
               ${SUPPORTED_CURRENCIES.map((c) => `<option value="${c}" ${c === state.currency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
           </div>
@@ -696,6 +1058,17 @@
     else if (state.screen === 'signin') root.innerHTML = signInView();
     else root.innerHTML = appView();
 
+    if (focusRowId) {
+      const row = root.querySelector(`.cc-row[data-id="${CSS.escape(focusRowId)}"]`);
+      if (row) row.focus();
+      focusRowId = null;
+    }
+    if (focusStore) {
+      const head = root.querySelector(`.cc-group-head[data-arg="${CSS.escape(focusStore)}"]`);
+      if (head) head.focus();
+      focusStore = null;
+    }
+
     if (focusKey) {
       const again = root.querySelector(`[data-field="${focusKey}"]`);
       if (again) again.focus();
@@ -705,7 +1078,12 @@
   // ---------- boot ----------
 
   // The popup can flip the theme too; keep the toggle label honest.
-  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  let renderedTheme = theme.current();
+  new MutationObserver(() => {
+    if (theme.current() === renderedTheme) return;
+    renderedTheme = theme.current();
+    render();
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
   storage.subscribeToChanges((changed) => {
     if (state.mode !== 'real') return;
@@ -716,7 +1094,27 @@
     }
   });
 
+  api.onAuthChange((event, session) => {
+    state.session = session;
+    if (session && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')) handOffSession(session);
+    if (event === 'SIGNED_OUT') leaveApp();
+  });
+
   window.addEventListener('hashchange', route);
   theme.init();
-  route();
+
+  // Read the redirect params now: supabase-js strips ?code= from the URL once its exchange finishes.
+  const params = new URLSearchParams(location.search);
+
+  (async () => {
+    // getSession waits for supabase-js to finish exchanging a Google/email-link ?code= redirect.
+    state.session = await api.getSession();
+    if (params.has('code') || params.has('error')) {
+      history.replaceState(null, '', location.pathname + location.hash);
+      if (state.session) return enterApp();
+      state.auth.error = params.get('error_description') || 'Google sign-in was cancelled.';
+      return go('signin');
+    }
+    route();
+  })();
 })();

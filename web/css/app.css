@@ -175,6 +175,20 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cc-signin-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
 .cc-signin-actions .cc-btn { padding: 13px 20px; font-size: 14px; }
 
+.cc-signin-email { margin-top: 10px; }
+
+.cc-auth-input {
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius-pill);
+  padding: 12px 18px;
+  font-size: 14px;
+  background: var(--cc-surface-hover);
+  text-align: center;
+  min-width: 0;
+}
+
+.cc-auth-error { color: var(--cc-danger); font-size: 13px; margin-top: 14px; text-wrap: pretty; }
+
 .cc-btn-surface {
   border: 1px solid var(--cc-border);
   background: var(--cc-surface);
@@ -229,13 +243,41 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cc-pagehead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
 .cc-pagetitle { font-size: 26px; font-weight: 700; letter-spacing: -0.025em; }
 
-.cc-select {
+.cc-pill {
   border: 1px solid var(--cc-border);
-  background: var(--cc-surface);
+  background-color: var(--cc-surface);
+  color: var(--cc-text);
   border-radius: var(--cc-radius-pill);
-  padding: 8px 14px;
+  padding: 8px 16px;
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.2;
+  box-shadow: var(--cc-shadow-sm);
+}
+
+/* Native select arrows sit flush against the edge and ignore the theme; draw our own chevron. */
+.cc-select {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%2352525b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 13px center;
+  background-size: 12px;
+}
+
+:root[data-theme="dark"] .cc-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23a1a1aa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.cc-select option { background: var(--cc-surface); color: var(--cc-text); }
+
+.cc-total-pill {
+  position: fixed;
+  left: calc(232px + 30px);
+  bottom: 24px;
+  z-index: 5;
 }
 
 .cc-notice { padding: 20px 22px; margin-bottom: 14px; }
@@ -244,7 +286,16 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .cc-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 
-.cc-cart-card { padding: 20px 22px; cursor: pointer; text-align: left; width: 100%; }
+/* Cards are <button>s, which centre their content vertically by default. */
+.cc-cart-card {
+  padding: 20px 22px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
 .cc-cart-card:hover { border-color: var(--cc-border-strong); box-shadow: var(--cc-shadow-sm); }
 .cc-cart-card-head { display: flex; align-items: baseline; gap: 10px; font-weight: 700; font-size: 17px; }
 .cc-cart-card-name { letter-spacing: -0.015em; flex: 1; min-width: 0; }
@@ -285,6 +336,46 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cc-caret { color: var(--cc-text-faint); font-size: 12px; width: 16px; text-align: center; }
 
 .cc-row { display: flex; gap: 14px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--cc-border); }
+/* Drag to reorder: the whole product panel lifts, neighbours glide out of the way. */
+[data-store] > .cc-row { position: relative; background: var(--cc-surface); cursor: grab; -webkit-user-select: none; user-select: none; }
+[data-store] > .cc-row:focus-visible { outline: 2px solid var(--cc-accent); outline-offset: -2px; }
+.cc-stack > .cc-group { position: relative; }
+.cc-stack > .cc-group > .cc-group-head { cursor: grab; }
+.cc-sorting > * { transition: transform 200ms cubic-bezier(0.2, 0, 0, 1); }
+.cc-sorting > .cc-lifted {
+  z-index: 2;
+  transition: box-shadow 150ms ease, border-radius 150ms ease;
+  box-shadow: var(--cc-shadow-lg);
+  cursor: grabbing;
+}
+.cc-sorting > .cc-row.cc-lifted { border-radius: var(--cc-radius-md); border-bottom-color: transparent; }
+.cc-sorting > .cc-lifted.cc-settling {
+  transition: transform 200ms cubic-bezier(0.2, 0, 0, 1), box-shadow 200ms ease;
+  box-shadow: none;
+}
+.cc-group:has(.cc-sorting) { overflow: visible; }
+body.cc-dragging-active,
+body.cc-dragging-active * { cursor: grabbing !important; user-select: none; }
+@media (prefers-reduced-motion: reduce) {
+  .cc-sorting > *,
+  .cc-sorting > .cc-lifted,
+  .cc-sorting > .cc-lifted.cc-settling { transition: none; }
+}
+
+.cc-item-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--cc-radius-sm);
+}
+a.cc-item-link { cursor: pointer; }
+a.cc-item-link:hover { color: inherit; }
+a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
+
 .cc-row input[type="checkbox"] { width: 17px; height: 17px; flex-shrink: 0; accent-color: #52525b; cursor: pointer; }
 
 .cc-thumb {
@@ -429,5 +520,6 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   .cc-side { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; }
   .cc-sidenav { flex-direction: row; }
   .cc-sidefoot { display: none; }
+  .cc-total-pill { left: 16px; bottom: 16px; }
   .cc-steps, .cc-grid-2, .cc-two-col, .cc-two-col.cc-wide-side { grid-template-columns: 1fr; }
 }

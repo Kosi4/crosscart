@@ -36,6 +36,30 @@
       const data = allowedOnly(msg.data);
       if (Object.keys(data).length) await storage.setStorage(data);
       post({ type: 'result', id: msg.id, data: {} });
+    } else if (msg.type === 'setSession') {
+      // Write-only: the session is never in ALLOWED, so pages can hand it over but never read it back.
+      const s = msg.session;
+      const valid =
+        s &&
+        typeof s.access_token === 'string' &&
+        typeof s.refresh_token === 'string' &&
+        Number.isFinite(s.expires_at) &&
+        s.user &&
+        typeof s.user.id === 'string';
+      if (valid) {
+        await storage.setStorage({
+          [STORAGE_KEYS.AUTH_SESSION]: {
+            access_token: s.access_token,
+            refresh_token: s.refresh_token,
+            expires_at: s.expires_at,
+            user: { id: s.user.id, email: typeof s.user.email === 'string' ? s.user.email : null },
+          },
+        });
+      }
+      post({ type: 'result', id: msg.id, data: {} });
+    } else if (msg.type === 'clearSession') {
+      await storage.removeStorage([STORAGE_KEYS.AUTH_SESSION]);
+      post({ type: 'result', id: msg.id, data: {} });
     }
   });
 

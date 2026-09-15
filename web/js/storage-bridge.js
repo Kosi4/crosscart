@@ -60,5 +60,16 @@ window.Crosscart = window.Crosscart || {};
       return () => listeners.delete(callback);
     },
     isAvailable: () => detected,
+    sendSession: (session) =>
+      request({
+        type: 'setSession',
+        session: {
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+          expires_at: session.expires_at,
+          user: { id: session.user.id, email: session.user.email },
+        },
+      }).then(() => undefined),
+    clearSession: () => request({ type: 'clearSession' }).then(() => undefined),
   };
 })();

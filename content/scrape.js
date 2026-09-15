@@ -358,6 +358,15 @@ window.Crosscart = window.Crosscart || {};
       merged.title = stripSiteSuffix(agentSites.cleanTitle(merged.title));
     }
 
+    // Shopify og:image is often http:// or protocol-relative, and microdata src can be relative;
+    // store an absolute https URL so the image loads on https pages.
+    if (merged.image) {
+      try {
+        merged.image = new URL(merged.image, window.location.href).href.replace(/^http:\/\//i, 'https://');
+      } catch (e) {
+        merged.image = '';
+      }
+    }
 
     const normalized = window.Crosscart.normalizeCurrency(merged.currency);
     merged.originalCurrency = normalized || merged.currency || '';

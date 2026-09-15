@@ -1,10 +1,10 @@
 window.Crosscart = window.Crosscart || {};
 
 (function () {
-  function attachDragAndDrop(container, items, onReorder) {
+  function attachDragAndDrop(container, items, onReorder, rowSelector = '.crosscart-item') {
     let dragIndex = null;
 
-    container.querySelectorAll('.crosscart-item').forEach((el) => {
+    container.querySelectorAll(rowSelector).forEach((el) => {
       el.addEventListener('dragstart', () => {
         dragIndex = Number(el.dataset.index);
         el.classList.add('crosscart-dragging');

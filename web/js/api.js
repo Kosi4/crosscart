@@ -3,7 +3,6 @@ window.Crosscart = window.Crosscart || {};
 // Mock backend. Every function here is a seam for the real server: same
 // names and shapes, fixture data and localStorage underneath for now.
 (function () {
-  const SESSION_KEY = 'crosscart-session';
   const ORDERS_KEY = 'crosscart-orders';
 
   // Demo stores from the design; shipping is a flat per-store USD amount.
@@ -61,41 +60,78 @@ window.Crosscart = window.Crosscart || {};
     } catch (e) {}
   }
 
+  // www.thesupermade.com and thesupermade.com are the same store.
+  function storeKey(domain) {
+    return String(domain || '').toLowerCase().replace(/^www\./, '');
+  }
+
   function storeInfo(domain) {
-    const known = STORES[domain];
-    return { name: known ? known.name : domain, shipUsd: known ? known.shipUsd : DEFAULT_SHIP_USD };
+    const key = storeKey(domain);
+    const known = STORES[key];
+    return { key, name: known ? known.name : key, shipUsd: known ? known.shipUsd : DEFAULT_SHIP_USD };
   }
 
-  function hash(str) {
-    let h = 0;
-    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
-    return Math.abs(h);
-  }
-
-  // ponytail: deterministic fake stock/price check so every checkout state is reachable; replace with the agent's live check
+  // No live stock/price check exists yet, so only the demo cart's scripted flags show.
+  // Real items must never get made-up "out of stock" or "price rose" labels.
   function checkItem(item) {
-    if (item.demoOos) return { oos: true, wasPrice: null };
-    if (item.demoWas) return { oos: false, wasPrice: item.demoWas };
-    const n = hash(item.url || item.id || '') % 10;
-    if (n === 0) return { oos: true, wasPrice: null };
-    if (n === 1) return { oos: false, wasPrice: Math.round(item.price * 0.92 * 100) / 100 };
-    return { oos: false, wasPrice: null };
+    return { oos: Boolean(item.demoOos), wasPrice: item.demoWas || null };
   }
 
-  function getSession() {
-    return readJson(SESSION_KEY, null);
+  // ---------- auth (real: Supabase) ----------
+
+  // Publishable key is meant to ship in client code; row-level security is what protects data.
+  const SUPABASE_URL = 'https://yrfengptboswesicdmhe.supabase.co';
+  const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_PYdC8UYjLq5OAdcwnafyTg_sNiszXl1';
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { flowType: 'pkce', persistSession: true, detectSessionInUrl: true },
+  });
+
+  async function getSession() {
+    const { data } = await supabase.auth.getSession();
+    return data.session;
   }
 
-  function signIn(provider) {
-    const session = { provider, card: 'Visa •••• 4412' };
-    writeJson(SESSION_KEY, session);
-    return session;
+  // OAuth appends ?code= to the redirect, which would land inside our #/ route, so redirect to the bare page.
+  async function signInWithGoogle() {
+    // signInWithOAuth navigates away immediately; check the provider is enabled first so a
+    // misconfigured project shows a message instead of a raw JSON error page.
+    const settings = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+    }).then((res) => (res.ok ? res.json() : null));
+    if (!settings || !settings.external || !settings.external.google) {
+      throw new Error('provider is not enabled');
+    }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: location.origin + location.pathname },
+    });
+    if (error) throw error;
   }
 
-  function signOut() {
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch (e) {}
+  // Sends whatever the Supabase email templates contain: a link today, a 6-digit code once
+  // custom SMTP lets the templates include {{ .Token }}. The redirect is used by the link.
+  async function sendEmailSignIn(email) {
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname },
+    });
+    if (error) throw error;
+  }
+
+  async function verifyEmailCode(email, token) {
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) throw error;
+    return data.session;
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+  }
+
+  function onAuthChange(callback) {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => callback(event, session));
+    return () => data.subscription.unsubscribe();
   }
 
   function listOrders() {
@@ -137,11 +173,16 @@ window.Crosscart = window.Crosscart || {};
 
   window.Crosscart.api = {
     DEMO_CARTS,
+    storeKey,
     storeInfo,
     checkItem,
+    supabase,
     getSession,
-    signIn,
+    signInWithGoogle,
+    sendEmailSignIn,
+    verifyEmailCode,
     signOut,
+    onAuthChange,
     listOrders,
     getOrder,
     placeOrder,

@@ -3,7 +3,9 @@
 }
 
 html {
-  background: var(--cc-bg);
+  /* Transparent so the popup window's actual corners show through — an
+     opaque background here would square off body's rounded corners below. */
+  background: transparent;
 }
 
 body {
@@ -113,6 +115,21 @@ input:focus-visible {
   letter-spacing: -0.01em;
   flex: 1;
   color: var(--cc-text);
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.crosscart-brand-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--cc-radius-sm);
+}
+
+.crosscart-brand:hover {
+  color: var(--cc-accent, var(--cc-text));
 }
 
 .crosscart-header select {

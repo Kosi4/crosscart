@@ -440,6 +440,64 @@ window.Crosscart = window.Crosscart || {};
     return null;
   }
 
+  // WooCommerce's variation form carries the full variant list as JSON on the
+  // form element itself (`data-product_variations`), keyed by attribute slug
+  // (e.g. `attribute_pa_size: 'l'`) — the pickers (select or swatch buttons)
+  // supply the pretty group name (their <label>) and slug->label text for
+  // each option. Fully structured, so this is always high confidence once a
+  // selection has actually been made.
+  function scrapeVariantFromWooForm() {
+    const form = document.querySelector('form.variations_form[data-product_variations]');
+    if (!form) return null;
+
+    let variations;
+    try {
+      variations = JSON.parse(form.dataset.product_variations || 'null');
+    } catch (e) {
+      variations = null;
+    }
+    if (!Array.isArray(variations) || !variations.length) return null;
+
+    const pickers = [...form.querySelectorAll('select[name^="attribute_"], [data-attribute_name]')];
+    if (!pickers.length) return null;
+
+    const groups = pickers.map((el) => {
+      const attrName = (el.name || el.dataset.attribute_name || '').replace(/^attribute_/, '');
+      // WooCommerce's <label for="pa_size"> lives in a sibling table cell, not
+      // inside the same wrapper as the picker, so id-based lookup first.
+      const labelEl = (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) || el.closest('tr, td, .value')?.querySelector('label');
+      const label = (labelEl?.textContent || attrName.replace(/^pa_/, '')).trim();
+      const valueMap = {};
+      let selectedSlug = '';
+      if (el.tagName === 'SELECT') {
+        [...el.options].forEach((o) => {
+          if (o.value) valueMap[o.value] = o.textContent.trim();
+        });
+        selectedSlug = el.value;
+      } else {
+        el.querySelectorAll('[data-value]').forEach((s) => {
+          valueMap[s.dataset.value] = s.textContent.trim() || s.dataset.value;
+        });
+        selectedSlug = el.querySelector('.selected, [aria-checked="true"]')?.dataset.value || '';
+      }
+      return { label, valueMap, selectedSlug };
+    });
+
+    const options = {};
+    groups.forEach((g) => (options[g.label] = Object.values(g.valueMap)));
+
+    // No selection made yet — report the choices available, but nothing is
+    // "selected" so this can't be treated as confirmed.
+    if (!groups.every((g) => g.selectedSlug)) {
+      return { variantSelected: {}, variantOptions: options, variantSource: 'woo_form', variantConfidence: 'low' };
+    }
+
+    const selected = {};
+    groups.forEach((g) => (selected[g.label] = g.valueMap[g.selectedSlug] || g.selectedSlug));
+
+    return { variantSelected: selected, variantOptions: options, variantSource: 'woo_form', variantConfidence: 'high' };
+  }
+
   // Nothing structured found (or it wasn't a ProductGroup) — whatever the DOM
   // summary shows is all there is, so it can only ever be low confidence.
   function scrapeVariantFromDom() {
@@ -457,6 +515,7 @@ window.Crosscart = window.Crosscart || {};
   function scrapeVariant() {
     return (
       scrapeVariantFromJsonLd() ||
+      scrapeVariantFromWooForm() ||
       scrapeVariantFromDom() || {
         variantSelected: {},
         variantOptions: {},

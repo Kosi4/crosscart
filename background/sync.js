@@ -144,8 +144,13 @@ function canonicalUrl(url) {
   }
 }
 
+// Postgres jsonb reorders keys, so compare variants with keys sorted.
+function stableVariant(variant) {
+  return JSON.stringify(Object.fromEntries(Object.entries(variant || {}).sort(([a], [b]) => a.localeCompare(b))));
+}
+
 function dedupeKey(item) {
-  return `${canonicalUrl(item.url)} ${JSON.stringify(item.variantSelected || {})}`;
+  return `${canonicalUrl(item.url)} ${stableVariant(item.variantSelected)}`;
 }
 
 function isSyncable(item) {
@@ -177,6 +182,8 @@ function itemRow(item, listId, position, userId) {
     position,
     variant_selected: item.variantSelected || {},
     variant_options: item.variantOptions || {},
+    variant_source: item.variantSource || null,
+    variant_confidence: item.variantConfidence || null,
     saved_at: new Date(item.savedAt || Date.now()).toISOString(),
     deleted_at: null,
   };
@@ -201,6 +208,8 @@ function localItem(row) {
     savedAt: Date.parse(row.saved_at) || Date.now(),
     variantSelected: row.variant_selected || {},
     variantOptions: row.variant_options || {},
+    variantSource: row.variant_source || null,
+    variantConfidence: row.variant_confidence || null,
   };
 }
 

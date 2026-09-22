@@ -316,6 +316,156 @@ window.Crosscart = window.Crosscart || {};
     return document.body ? findPriceIn(document.body) : '';
   }
 
+  // "Color: Photo Color" / "Size: S" — a near-leaf node whose whole text is
+  // "Label: Value" is how most storefronts (Shopify apps, WooCommerce themes)
+  // summarize the currently-selected option next to its picker, regardless of
+  // the picker's own markup (swatches, buttons, selects all differ).
+  const LABEL_VALUE_RE = /^([A-Za-z][A-Za-z\s]{1,20}):\s*(.+)$/;
+  const LABEL_STOPWORDS = new Set([
+    'note', 'tip', 'ships', 'shipping', 'delivery', 'warning', 'return', 'returns',
+    'warranty', 'material', 'care', 'fit', 'sku', 'price', 'free', 'estimated',
+  ]);
+
+  function parseLabelValuePairs() {
+    const scopes = [];
+    for (const selector of PRICE_SCOPES) {
+      const found = document.querySelector(selector);
+      if (found) scopes.push(found);
+    }
+    scopes.push(document.body);
+
+    // A narrow scope (e.g. a "Size & Fit" box) can match Size but miss Color
+    // entirely — take whichever scope found the most, not just the first hit.
+    let best = [];
+    for (const scope of scopes) {
+      if (!scope) continue;
+      const seen = new Set();
+      const pairs = [];
+      for (const el of scope.querySelectorAll('*')) {
+        if (el.children.length > 1) continue;
+        const text = el.textContent.trim();
+        if (!text || text.length > 60) continue;
+        const match = text.match(LABEL_VALUE_RE);
+        if (!match) continue;
+        const name = match[1].trim();
+        const value = match[2].trim();
+        const key = name.toLowerCase();
+        if (!value || seen.has(key) || LABEL_STOPWORDS.has(key)) continue;
+        seen.add(key);
+        pairs.push({ name, value });
+      }
+      if (pairs.length > best.length) best = pairs;
+    }
+    return best;
+  }
+
+  // The last run of 6+ digits in a Shopify variant offer's url/@id is its
+  // numeric variant id — the same id the page's own ?variant= query carries.
+  function lastLongNumber(value) {
+    const matches = String(value || '').match(/\d{6,}/g);
+    return matches ? matches[matches.length - 1] : null;
+  }
+
+  // Highest-confidence source: JSON-LD ProductGroup lists every variant's
+  // price/availability, but (at least on Shopify) never names the option
+  // groups — only the DOM does ("Color: Photo Color"). Pair the two: DOM
+  // supplies group names in picker order, JSON-LD's variant name suffix
+  // ("Photo Color / S") supplies the same values in the same order, and the
+  // page's own ?variant= id (embedded in each variant's offer url/@id)
+  // says which combination is actually selected right now.
+  function scrapeVariantFromJsonLd() {
+    const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+    for (const script of scripts) {
+      let data;
+      try {
+        data = JSON.parse(script.textContent);
+      } catch (e) {
+        continue;
+      }
+      const nodes = window.Crosscart.detect.collectJsonLdNodes(data);
+      for (const node of nodes) {
+        if (node['@type'] !== 'ProductGroup' || !Array.isArray(node.hasVariant) || !node.hasVariant.length) continue;
+
+        const baseName = node.name || '';
+        const currentVariantId = new URLSearchParams(window.location.search).get('variant');
+
+        const parsed = node.hasVariant.map((variant) => {
+          let suffix = String(variant.name || '');
+          if (baseName && suffix.startsWith(baseName)) suffix = suffix.slice(baseName.length);
+          suffix = suffix.replace(/^[\s\-–—|]+/, '');
+          const values = suffix
+            .split('/')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const offer = variant.offers || {};
+          const variantId = lastLongNumber(offer.url) || lastLongNumber(variant['@id']);
+          return { values, variantId };
+        });
+
+        if (!parsed[0].values.length) continue;
+
+        const selectedEntry =
+          (currentVariantId && parsed.find((v) => v.variantId === currentVariantId)) || parsed[0];
+
+        // Name each position by the DOM label showing that exact value, so unrelated
+        // "More Info: Shipping Policy" lines on the page can't shift the mapping.
+        const domPairs = parseLabelValuePairs();
+        const same = (a, b) => a.toLowerCase() === b.toLowerCase();
+        const names = selectedEntry.values.map((value, i) => {
+          const pair = domPairs.find((p) => same(p.value, value));
+          return pair ? pair.name : `Option ${i + 1}`;
+        });
+        const namesMatch = names.every((name, i) => name !== `Option ${i + 1}`) && new Set(names).size === names.length;
+
+        const options = {};
+        names.forEach((name) => (options[name] = []));
+        parsed.forEach(({ values }) => {
+          values.forEach((value, i) => {
+            const name = names[i];
+            if (name && !options[name].includes(value)) options[name].push(value);
+          });
+        });
+
+        const selected = {};
+        names.forEach((name, i) => (selected[name] = selectedEntry.values[i] || ''));
+
+        return {
+          variantSelected: selected,
+          variantOptions: options,
+          variantSource: 'jsonld',
+          variantConfidence: namesMatch ? 'high' : 'low',
+        };
+      }
+    }
+    return null;
+  }
+
+  // Nothing structured found (or it wasn't a ProductGroup) — whatever the DOM
+  // summary shows is all there is, so it can only ever be low confidence.
+  function scrapeVariantFromDom() {
+    const pairs = parseLabelValuePairs();
+    if (!pairs.length) return null;
+    const selected = {};
+    const options = {};
+    pairs.forEach(({ name, value }) => {
+      selected[name] = value;
+      options[name] = [value];
+    });
+    return { variantSelected: selected, variantOptions: options, variantSource: 'dom_label', variantConfidence: 'low' };
+  }
+
+  function scrapeVariant() {
+    return (
+      scrapeVariantFromJsonLd() ||
+      scrapeVariantFromDom() || {
+        variantSelected: {},
+        variantOptions: {},
+        variantSource: 'none',
+        variantConfidence: null,
+      }
+    );
+  }
+
   function scrapeDomFallback() {
     const h1 = document.querySelector('h1');
     const priceText = scanCurrencyPrice();
@@ -378,6 +528,8 @@ window.Crosscart = window.Crosscart || {};
     merged.quantity = 1;
     merged.savedAt = Date.now();
 
+    Object.assign(merged, scrapeVariant());
+
     return merged;
   }
 
@@ -386,6 +538,7 @@ window.Crosscart = window.Crosscart || {};
     scrapeMetaTags,
     scrapeMicrodata,
     scrapeDomFallback,
+    scrapeVariant,
     mergeProductData,
     scrapeProduct,
     findLargestImage,

@@ -54,9 +54,26 @@ window.Crosscart = window.Crosscart || {};
     return next;
   }
 
+  // Must match background/sync.js dedupeKey(): the server allows one row per
+  // canonical URL + selected variant, so a different size is a separate line.
+  const TRACKING_PARAMS = /^(utm_|fbclid$|gclid$)/;
+
+  function productKey(item) {
+    let url = item.url;
+    try {
+      const parsed = new URL(item.url);
+      parsed.hash = '';
+      [...parsed.searchParams.keys()].filter((k) => TRACKING_PARAMS.test(k)).forEach((k) => parsed.searchParams.delete(k));
+      url = parsed.href;
+    } catch (e) {}
+    const variant = Object.fromEntries(Object.entries(item.variantSelected || {}).sort(([a], [b]) => a.localeCompare(b)));
+    return `${url} ${JSON.stringify(variant)}`;
+  }
+
   function saveToList(lists, listName, product) {
     const items = lists[listName] ? [...lists[listName]] : [];
-    const existing = items.find((item) => item.url === product.url);
+    const key = productKey(product);
+    const existing = items.find((item) => productKey(item) === key);
     if (existing) {
       existing.quantity = (existing.quantity || 1) + 1;
     } else {

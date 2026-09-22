@@ -400,6 +400,8 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 
 .cc-grow { flex: 1; min-width: 0; }
 .cc-ellipsis { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cc-item-variant { color: var(--cc-text-faint); font-size: 12px; margin-top: 2px; }
+.cc-item-variant-unsure { color: var(--cc-warn, var(--cc-text-faint)); }
 
 .cc-flag {
   display: inline-block;

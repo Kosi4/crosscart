@@ -795,10 +795,17 @@
                 : '';
             const img = imageSrc(item.image);
             const href = safeUrl(item.url);
+            const variant = item.variantSelected || {};
+            const variantText = Object.entries(variant)
+              .filter(([, v]) => v)
+              .map(([k, v]) => `${k} ${v}`)
+              .join(' · ');
+            const unconfirmed = variantText && item.variantConfidence === 'low';
             const body = `
                 ${img ? `<img class="cc-thumb" src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" draggable="false" />` : '<div class="cc-thumb"></div>'}
                 <div class="cc-grow">
                   <div class="cc-ellipsis cc-item-title">${esc(item.title)}</div>
+                  ${variantText ? `<div class="cc-item-variant">${esc(variantText)}${unconfirmed ? ' · <span class="cc-item-variant-unsure">confirm on site</span>' : ''}</div>` : ''}
                   ${flag ? `<div class="cc-flag">${flag}</div>` : ''}
                 </div>`;
             return `

@@ -795,10 +795,15 @@
                 : '';
             const img = imageSrc(item.image);
             const href = safeUrl(item.url);
+            // Stores sometimes label a swatch "Photo Color"/"Default"/"One Size" when there
+            // was never a real choice (variantOptions has only that one value) — that tells
+            // a shopper nothing, so skip it rather than showing the store's placeholder text.
+            const PLACEHOLDER_VARIANT_VALUE = /^(photo color|default|one (size|color)|n\/a|standard|regular)$/i;
             const variant = item.variantSelected || {};
+            const options = item.variantOptions || {};
             const variantText = Object.entries(variant)
-              .filter(([, v]) => v)
-              .map(([k, v]) => `${k} ${v}`)
+              .filter(([k, v]) => v && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
+              .map(([k, v]) => `${k}: ${v}`)
               .join(' · ');
             const unconfirmed = variantText && item.variantConfidence === 'low';
             const body = `

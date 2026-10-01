@@ -312,6 +312,9 @@ function applyServerChanges(lists, shadow, listIds, serverLists, serverItems) {
     // Items edited locally since the last sync keep the local edit; it gets pushed below.
     // A move counts as an edit: the pull re-reads rows our last push touched, still
     // holding the old position, and would otherwise undo a drag-reorder.
+    // Synced before but gone locally means it was deleted here: don't let the echo
+    // bring it back. The push below soft-deletes it on the server.
+    if (!found && shadowItem && !row.deleted_at) continue;
     if (found && shadowItem) {
       const localHash = rowHash(itemRow(next[found.name][found.index], shadowItem.listId, 0, shadow.userId));
       const place = localPlace[row.id];

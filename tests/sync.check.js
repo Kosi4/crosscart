@@ -203,5 +203,29 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
   assert.deepStrictEqual(w4.store.cartLists.Shoes.map((i) => i.title), ['B', 'C', 'A']);
   console.log('12 reorder from another device still pulled: ok');
 
+  // Same echo, for a delete: the item is gone locally, so the echoed row must
+  // not be read as a new item from another device and put back.
+  const w5 = makeWorld({ cartLists: { Shoes: ['a', 'b', 'c'].map((x) => item(`l-${x}`, x.toUpperCase(), `https://stockx.com/${x}`, '10', 'USD')) } });
+  r = await w5.send({ type: 'linkExtension', tokenHash: 'hash' });
+  assert.strictEqual(r.ok, true, r.error);
+  lists = clone(w5.store.cartLists);
+  lists.Shoes = lists.Shoes.filter((i) => i.title !== 'B');
+  w5.store.cartLists = lists;
+  await w5.send({ type: 'syncNow' });
+  assert.deepStrictEqual(w5.store.cartLists.Shoes.map((i) => i.title), ['A', 'C']);
+  assert.ok(!w5.active('list_items').some((i) => i.title === 'B'));
+  console.log('13 local delete survives the echo of the previous push: ok');
+
+  const shoesList = w5.active('lists').find((l) => l.name === 'Shoes');
+  w5.db.list_items.push({
+    id: '22222222-2222-4222-8222-222222222222', list_id: shoesList.id, user_id: USER, url: 'https://stockx.com/d',
+    canonical_url: 'https://stockx.com/d', domain: 'stockx.com', title: 'D', image_url: null, saved_price_minor: 1000,
+    saved_currency: 'USD', quantity: 1, position: 2, variant_selected: {}, variant_options: {},
+    saved_at: w5.now(), updated_at: w5.now(), deleted_at: null,
+  });
+  await w5.send({ type: 'syncNow' });
+  assert.deepStrictEqual(w5.store.cartLists.Shoes.map((i) => i.title), ['A', 'C', 'D']);
+  console.log('14 item added on another device still pulled: ok');
+
   console.log('ALL SYNC CHECKS PASSED');
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });

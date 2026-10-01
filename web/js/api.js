@@ -92,6 +92,15 @@ window.Crosscart = window.Crosscart || {};
     return data.session;
   }
 
+  // Plan comes from the profile; only CrossCart's billing can set it (see the plus_plan migration).
+  // Anything unreadable, including a database without that migration yet, counts as free.
+  async function getPlan() {
+    const session = await getSession();
+    if (!session) return 'free';
+    const { data, error } = await supabase.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
+    return !error && data && data.plan === 'plus' ? 'plus' : 'free';
+  }
+
   // OAuth appends ?code= to the redirect, which would land inside our #/ route, so redirect to the bare page.
   async function signInWithGoogle() {
     // signInWithOAuth navigates away immediately; check the provider is enabled first so a
@@ -159,13 +168,15 @@ window.Crosscart = window.Crosscart || {};
 
   // legs: [{ domain, amountUsd }]. The second store fails, as in the design, so
   // the retry path is always exercised.
-  function placeOrder(cartName, legs, totalUsd) {
+  // fee: the pricing quote the shopper saw, kept so a receipt never changes later.
+  function placeOrder(cartName, legs, totalUsd, fee) {
     const saved = readJson(ORDERS_KEY, []);
     const order = {
       id: nextOrderId(saved),
       date: new Date().toISOString(),
       cart: cartName,
       totalUsd,
+      fee: fee || null,
       legs: legs.map((leg, i) => ({ ...leg, state: i === 1 ? 'failed' : 'confirmed' })),
     };
     writeJson(ORDERS_KEY, [order, ...saved]);
@@ -188,6 +199,7 @@ window.Crosscart = window.Crosscart || {};
     checkItem,
     supabase,
     getSession,
+    getPlan,
     signInWithGoogle,
     sendEmailSignIn,
     verifyEmailCode,

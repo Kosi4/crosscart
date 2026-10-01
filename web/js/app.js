@@ -1,11 +1,10 @@
 (function () {
   const C = window.Crosscart;
-  const { STORAGE_KEYS, SUPPORTED_CURRENCIES, storage, lists: listsApi, currencyRates, theme, api } = C;
+  const { STORAGE_KEYS, SUPPORTED_CURRENCIES, storage, lists: listsApi, currencyRates, theme, api, pricing } = C;
   const esc = C.dom.escapeHtml;
   const { safeUrl } = C.dom;
 
   const MODE_KEY = 'crosscart-mode';
-  const FEE_RATE = 0.025;
   const SYMBOLS = { USD: '$', EUR: '€', GBP: '£', ZAR: 'R', JPY: '¥', CAD: 'CA$', AUD: 'A$', INR: '₹' };
   const APP_SCREENS = ['carts', 'cart', 'checkout', 'placing', 'confirm', 'orders'];
   const RATES_MAX_AGE_MS = 1000 * 60 * 60;
@@ -15,6 +14,8 @@
   const state = {
     screen: 'landing',
     mode: null,
+    plan: 'free',
+    feeOpen: false,
     loadedMode: null,
     extension: null,
     carts: {},
@@ -95,14 +96,22 @@
     return groups;
   }
 
+  // A store charges in the currency its prices were saved in.
+  function storeCurrency(group) {
+    const foreign = group.items.find((item) => pricing.isForeign(item.currency));
+    return foreign ? foreign.currency.toUpperCase() : pricing.PRICING.CARD_CURRENCY;
+  }
+
   // Selected items count toward totals even when flagged out of stock; the flag is a warning, not a removal.
   function checkoutTotals() {
     const chosen = cartItems().filter(isSelected);
     const groups = groupByStore(chosen);
-    const goods = goodsUsd(chosen);
-    const shipping = groups.reduce((sum, g) => sum + api.storeInfo(g.domain).shipUsd, 0);
-    const fee = goods * FEE_RATE;
-    return { chosen, groups, goods, shipping, fee, total: goods + shipping + fee };
+    const quote = pricing.quote(
+      groups.map((g) => ({ goodsUsd: goodsUsd(g.items), shipUsd: api.storeInfo(g.domain).shipUsd, currency: storeCurrency(g) })),
+      state.plan
+    );
+    const { goods, shipping, fee } = quote;
+    return { chosen, groups, goods, shipping, fee, quote, total: goods + shipping + fee };
   }
 
   // Scraped image URLs are sometimes http://, which an https page (and our CSP) won't load.
@@ -161,6 +170,7 @@
       return;
     }
 
+    state.plan = await api.getPlan();
     const { lists, activeList } = await listsApi.loadLists();
     state.carts = lists;
     state.activeCart = state.activeCart && lists[state.activeCart] ? state.activeCart : activeList;
@@ -363,6 +373,14 @@
       go('cart');
     },
 
+    toggleFee: () => {
+      state.feeOpen = !state.feeOpen;
+      render();
+      // render() replaces the markup, so put keyboard focus back on the toggle.
+      const toggle = root.querySelector('[data-action="toggleFee"]');
+      if (toggle) toggle.focus();
+    },
+
     toggleGroup: (domain) => {
       state.collapsed[domain] = !state.collapsed[domain];
       render();
@@ -377,7 +395,7 @@
         domain: g.domain,
         amountUsd: goodsUsd(g.items) + api.storeInfo(g.domain).shipUsd,
       }));
-      state.order = api.placeOrder(state.checkoutAll ? 'All carts' : state.activeCart, legs, totals.total);
+      state.order = api.placeOrder(state.checkoutAll ? 'All carts' : state.activeCart, legs, totals.total, totals.quote);
       state.form = {};
       go('placing');
       setTimeout(() => {
@@ -642,7 +660,7 @@
     const steps = [
       ['01 — Save', 'Add from any store', 'The extension puts an add button on product pages and reads the title, price and image off the page.'],
       ['02 — Compare', 'One running total', 'Everything converted into the currency you think in, across as many named lists as you want.'],
-      ['03 — Pay once', 'We check out for you', "CrossCart places each store's order with your saved card, then reports back per store."],
+      ['03 — Pay once', 'We check out for you', 'You pay CrossCart once. We pay each store with a single-use card, then report back per store.'],
     ];
     return `
       <div class="cc-landing">
@@ -728,15 +746,40 @@
       </div>`;
   }
 
+  // The fee is one line; tapping it shows what it's made of.
   function summaryRows(totals) {
-    const rows = [
-      [`Items (${totals.chosen.length})`, fmt(totals.goods)],
-      [`Shipping · ${plural(totals.groups.length, 'store')}`, fmt(totals.shipping)],
-      ['CrossCart fee (2.5%)', fmt(totals.fee)],
-    ];
-    return `<div class="cc-summary-rows">${rows
-      .map(([label, value]) => `<div class="cc-summary-row"><div class="cc-grow">${label}</div><div>${value}</div></div>`)
-      .join('')}</div>`;
+    const q = totals.quote;
+    const { PRICING } = pricing;
+    const row = (label, value) =>
+      `<div class="cc-summary-row"><div class="cc-grow">${label}</div><div>${value}</div></div>`;
+
+    const parts = [[`Service fee (${PRICING.SERVICE_RATE * 100}%)`, fmt(q.service)]];
+    if (q.storeCount) {
+      parts.push(
+        q.plan === 'plus'
+          ? [`Store fee · ${plural(q.storeCount, 'store')} · Plus`, 'Free']
+          : [`Store fee · ${q.storeCount} × ${fmt(PRICING.PER_STORE_USD)}`, fmt(q.perStore)]
+      );
+    }
+    if (q.conversion) {
+      parts.push([`Currency conversion (${PRICING.FX_RATE * 100}%) · ${plural(q.foreignStores, 'store')}`, fmt(q.conversion)]);
+    }
+
+    const open = state.feeOpen;
+    const fee = `
+      <button class="cc-summary-row cc-fee-toggle" data-action="toggleFee" aria-expanded="${open}" aria-controls="cc-fee-parts">
+        <div class="cc-grow">CrossCart fee <span class="cc-caret">${open ? '▾' : '▸'}</span></div><div>${fmt(q.fee)}</div>
+      </button>
+      ${open ? `<div class="cc-fee-parts" id="cc-fee-parts">${parts.map(([l, v]) => row(l, v)).join('')}</div>` : ''}`;
+
+    const upsell =
+      q.plan !== 'plus' && q.perStore
+        ? `<div class="cc-faint" style="font-size:12px;margin-top:10px;text-wrap:pretty">CrossCart Plus skips store fees: ${fmt(q.perStore)} off this order, ${fmt(PRICING.PLUS_MONTHLY_USD)}/month.</div>`
+        : '';
+    return `<div class="cc-summary-rows">${row(`Items (${totals.chosen.length})`, fmt(totals.goods))}${row(
+      `Shipping · ${plural(totals.groups.length, 'store')}`,
+      fmt(totals.shipping)
+    )}${fee}</div>${upsell}`;
   }
 
   function cartsView() {
@@ -863,11 +906,13 @@
     const breakdown = totals.groups
       .map((g) => {
         const store = api.storeInfo(g.domain);
+        const currency = storeCurrency(g);
+        const priced = pricing.isForeign(currency) ? ` · charges in ${esc(currency)}` : '';
         return `
         <div class="cc-line">
           <div class="cc-grow">
             <div style="font-weight:600">${esc(store.name)}</div>
-            <div class="cc-line-meta">${plural(g.items.length, 'item')} · ${fmt(store.shipUsd)} shipping</div>
+            <div class="cc-line-meta">${plural(g.items.length, 'item')} · ${fmt(store.shipUsd)} shipping${priced}</div>
           </div>
           <div style="font-weight:700">${fmt(goodsUsd(g.items) + store.shipUsd)}</div>
         </div>`;

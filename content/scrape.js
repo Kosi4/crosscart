@@ -59,7 +59,7 @@ window.Crosscart = window.Crosscart || {};
       .replace(/[^a-z0-9]/g, '');
   }
 
-  // "Black Risen King Hoodie | We Are Righteous" -> "Black Risen King Hoodie".
+  // "Black Risen King Hoodie | We Are Righteous" -> "Risen King Hoodie - Black".
   // Only drops a trailing segment that actually looks like this site's name
   // (og:site_name, the JSON-LD site node, or the domain label), so a real
   // variant suffix like "Denim Jacket - Black Wash" survives.
@@ -112,15 +112,31 @@ window.Crosscart = window.Crosscart || {};
   // AggregateOffer carrying lowPrice/highPrice instead of price. Prefer an
   // in-stock offer, then the cheapest — that's the sale price when a site
   // lists the discounted variant alongside the full-price one.
+  // Farfetch (and some other sites) give priceSpecification as an array of
+  // {price, priceCurrency} rather than a single object — same schema.org
+  // property, just plural. Normalize to one entry either way.
+  function priceSpecOf(offer) {
+    const spec = offer && offer.priceSpecification;
+    if (!spec) return null;
+    return Array.isArray(spec) ? spec[0] || null : spec;
+  }
+
   function offerPrice(offer) {
     if (!offer || typeof offer !== 'object') return '';
+    const spec = priceSpecOf(offer);
     const direct =
       offer.price !== undefined && offer.price !== null && offer.price !== ''
         ? offer.price
         : offer.lowPrice !== undefined && offer.lowPrice !== null
           ? offer.lowPrice
-          : offer.priceSpecification && offer.priceSpecification.price;
+          : spec && spec.price;
     return direct === undefined || direct === null || direct === '' ? '' : String(direct);
+  }
+
+  function offerCurrency(offer) {
+    if (!offer || typeof offer !== 'object') return '';
+    const spec = priceSpecOf(offer);
+    return offer.priceCurrency || (spec && spec.priceCurrency) || '';
   }
 
   function pickOffer(offers) {
@@ -136,7 +152,7 @@ window.Crosscart = window.Crosscart || {};
         if (!price || !Number.isFinite(Number(price))) continue;
         priced.push({
           price,
-          currency: candidate.priceCurrency || offer.priceCurrency || '',
+          currency: offerCurrency(candidate) || offerCurrency(offer),
           inStock: /InStock|LimitedAvailability/i.test(String(candidate.availability || '')),
         });
       }
@@ -159,7 +175,12 @@ window.Crosscart = window.Crosscart || {};
           const types = Array.isArray(type) ? type : [type];
           if (!types.some((t) => typeof t === 'string' && /product/i.test(t))) continue;
 
-          const offer = pickOffer(node.offers);
+          // A ProductGroup (Shopify, Farfetch, ...) rarely carries its own `offers` —
+          // the price lives on each variant in `hasVariant[].offers` instead.
+          const offersSource =
+            node.offers ||
+            (Array.isArray(node.hasVariant) ? node.hasVariant.map((v) => v.offers).filter(Boolean) : undefined);
+          const offer = pickOffer(offersSource);
           return {
             title: node.name || '',
             image: imageUrl(node.image),

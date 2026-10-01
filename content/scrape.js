@@ -164,6 +164,12 @@ window.Crosscart = window.Crosscart || {};
     return pool.reduce((best, o) => (Number(o.price) < Number(best.price) ? o : best));
   }
 
+  function brandName(brand) {
+    const b = Array.isArray(brand) ? brand[0] : brand;
+    if (!b) return '';
+    return String(typeof b === 'object' ? b.name || '' : b).trim();
+  }
+
   function scrapeJsonLd() {
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of scripts) {
@@ -183,6 +189,7 @@ window.Crosscart = window.Crosscart || {};
           const offer = pickOffer(offersSource);
           return {
             title: node.name || '',
+            brand: brandName(node.brand),
             image: imageUrl(node.image),
             price: offer.price,
             currency: offer.currency,
@@ -227,9 +234,32 @@ window.Crosscart = window.Crosscart || {};
     };
   }
 
+  // Size as rendered, not the file's natural size: a hidden mega-menu banner can be
+  // the biggest file on the page (cottonon.com) while showing at 0px. Among what's
+  // actually on screen outside the header/nav/footer, the biggest wins; ties go to the
+  // one shown first (top, then left), which is the gallery's lead photo.
   function findLargestImage() {
     let best = null;
     let bestArea = 0;
+    let bestTop = Infinity;
+    let bestLeft = Infinity;
+    document.querySelectorAll('img').forEach((img) => {
+      const r = img.getBoundingClientRect();
+      if (!r.width || !r.height || r.right <= 0 || r.left >= window.innerWidth) return;
+      if (getComputedStyle(img).visibility === 'hidden') return;
+      if (img.closest('header, nav, footer')) return;
+      const area = r.width * r.height;
+      const top = r.top + window.scrollY;
+      if (area > bestArea || (area === bestArea && (top < bestTop || (top === bestTop && r.left < bestLeft)))) {
+        best = img;
+        bestArea = area;
+        bestTop = top;
+        bestLeft = r.left;
+      }
+    });
+    if (best) return best.currentSrc || best.src;
+
+    // Nothing rendered yet (e.g. lazy images): fall back to the biggest file.
     document.querySelectorAll('img').forEach((img) => {
       const area = (img.naturalWidth || img.width || 0) * (img.naturalHeight || img.height || 0);
       if (area > bestArea) {
@@ -394,6 +424,66 @@ window.Crosscart = window.Crosscart || {};
   // ("Photo Color / S") supplies the same values in the same order, and the
   // page's own ?variant= id (embedded in each variant's offer url/@id)
   // says which combination is actually selected right now.
+  function propValue(value) {
+    if (value && typeof value === 'object') return String(value.name || value.value || '').trim();
+    return String(value == null ? '' : value).trim();
+  }
+
+  // A closed size picker shows only the chosen value ("31/32 W/L (in)"); an open
+  // list or a size guide shows every value, which is ambiguous — so only a single
+  // distinct match counts as the selection.
+  const PICKER_SCOPES = '[data-testid*="variant" i], [data-testid*="size" i], [class*="variant" i], [id*="variant" i]';
+
+  function shownOption(values) {
+    const found = new Set();
+    document.querySelectorAll(PICKER_SCOPES).forEach((scope) => {
+      scope.querySelectorAll('*').forEach((el) => {
+        if (el.children.length) return;
+        const text = el.textContent.trim();
+        const match = values.find((v) => text === v || text.startsWith(`${v} `));
+        if (match) found.add(match);
+      });
+    });
+    return found.size === 1 ? [...found][0] : '';
+  }
+
+  // Farfetch (and any site following schema.org properly) declares what varies
+  // ("variesBy": ["https://schema.org/size"]) and puts the value on each variant
+  // (variant.size = "31/32"). That beats parsing names, whose formats differ per site.
+  function scrapeExplicitVariants(node) {
+    const props = (Array.isArray(node.variesBy) ? node.variesBy : [node.variesBy])
+      .map((p) => String(p || '').split(/[/#]/).pop())
+      .filter((p) => p && node.hasVariant.some((v) => propValue(v[p])));
+    if (!props.length) return null;
+
+    const label = (p) => p.charAt(0).toUpperCase() + p.slice(1);
+    const options = {};
+    props.forEach((p) => {
+      options[label(p)] = [...new Set(node.hasVariant.map((v) => propValue(v[p])).filter(Boolean))];
+    });
+
+    const currentVariantId = new URLSearchParams(window.location.search).get('variant');
+    const chosen =
+      currentVariantId &&
+      node.hasVariant.find((v) =>
+        [lastLongNumber((v.offers || {}).url), lastLongNumber(v['@id']), String(v.sku || '')].includes(currentVariantId)
+      );
+
+    const selected = {};
+    props.forEach((p) => {
+      const value = chosen ? propValue(chosen[p]) : shownOption(options[label(p)]);
+      if (value) selected[label(p)] = value;
+    });
+    const complete = props.every((p) => selected[label(p)]);
+
+    return {
+      variantSelected: complete ? selected : {},
+      variantOptions: options,
+      variantSource: 'jsonld',
+      variantConfidence: complete ? 'high' : 'low',
+    };
+  }
+
   function scrapeVariantFromJsonLd() {
     const scripts = document.querySelectorAll('script[type="application/ld+json"]');
     for (const script of scripts) {
@@ -407,6 +497,9 @@ window.Crosscart = window.Crosscart || {};
       for (const node of nodes) {
         if (node['@type'] !== 'ProductGroup' || !Array.isArray(node.hasVariant) || !node.hasVariant.length) continue;
 
+        const explicit = scrapeExplicitVariants(node);
+        if (explicit) return explicit;
+
         const baseName = node.name || '';
         const currentVariantId = new URLSearchParams(window.location.search).get('variant');
 
@@ -414,8 +507,9 @@ window.Crosscart = window.Crosscart || {};
           let suffix = String(variant.name || '');
           if (baseName && suffix.startsWith(baseName)) suffix = suffix.slice(baseName.length);
           suffix = suffix.replace(/^[\s\-–—|]+/, '');
+          // Shopify joins options with " / "; a bare "/" belongs to the value ("30/32").
           const values = suffix
-            .split('/')
+            .split(/\s+\/\s+/)
             .map((s) => s.trim())
             .filter(Boolean);
           const offer = variant.offers || {};
@@ -572,11 +666,25 @@ window.Crosscart = window.Crosscart || {};
     return merged;
   }
 
+  // Multi-brand stores (Farfetch) name products without the brand ("graphic-print
+  // hoodie"). On a single-brand store the brand is the store itself, so prefixing
+  // it there would only repeat the store name.
+  function withBrand(title, brand, hostname) {
+    if (!title || !brand) return title;
+    const squash = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const b = squash(brand);
+    if (!b || squash(title).includes(b)) return title;
+    const siteName = squash(document.querySelector('meta[property="og:site_name"]')?.content);
+    if (squash(hostname).includes(b) || (siteName && (siteName.includes(b) || b.includes(siteName)))) return title;
+    return `${brand} ${title}`;
+  }
+
   function scrapeProduct() {
     const hostname = window.location.hostname;
     const agentSites = window.Crosscart.agentSites;
 
-    const tiers = [scrapeJsonLd(), scrapeMetaTags(), scrapeMicrodata(), scrapeDomFallback()];
+    const jsonLd = scrapeJsonLd();
+    const tiers = [jsonLd, scrapeMetaTags(), scrapeMicrodata(), scrapeDomFallback()];
     const merged = mergeProductData(...tiers);
 
     merged.title = decodeEntities(merged.title);
@@ -585,7 +693,7 @@ window.Crosscart = window.Crosscart || {};
       const agentTitle = agentSites.findAgentProductTitle();
       if (agentTitle) merged.title = agentTitle;
     } else {
-      merged.title = stripSiteSuffix(agentSites.cleanTitle(merged.title));
+      merged.title = withBrand(stripSiteSuffix(agentSites.cleanTitle(merged.title)), jsonLd.brand, hostname);
     }
 
     // Shopify og:image is often http:// or protocol-relative, and microdata src can be relative;

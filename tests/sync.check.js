@@ -183,5 +183,25 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
   assert.ok(!w3.requests.some((x) => x.includes('token')));
   console.log('10 old web-app session discarded, never refreshed: ok');
 
+  // The next pull re-reads rows our last push touched, still holding the old
+  // positions; a drag-reorder made in between must survive that echo.
+  const w4 = makeWorld({ cartLists: { Shoes: ['a', 'b', 'c'].map((x) => item(`l-${x}`, x.toUpperCase(), `https://stockx.com/${x}`, '10', 'USD')) } });
+  r = await w4.send({ type: 'linkExtension', tokenHash: 'hash' });
+  assert.strictEqual(r.ok, true, r.error);
+  lists = clone(w4.store.cartLists);
+  lists.Shoes = [lists.Shoes[2], lists.Shoes[0], lists.Shoes[1]];
+  w4.store.cartLists = lists;
+  await w4.send({ type: 'syncNow' });
+  assert.deepStrictEqual(w4.store.cartLists.Shoes.map((i) => i.title), ['C', 'A', 'B']);
+  const pos = (t) => w4.active('list_items').find((i) => i.title === t).position;
+  assert.deepStrictEqual([pos('C'), pos('A'), pos('B')], [0, 1, 2]);
+  console.log('11 local reorder survives the echo of the previous push: ok');
+
+  const stamp = w4.now();
+  ['B', 'C', 'A'].forEach((title, position) => Object.assign(w4.db.list_items.find((i) => i.title === title), { position, updated_at: stamp }));
+  await w4.send({ type: 'syncNow' });
+  assert.deepStrictEqual(w4.store.cartLists.Shoes.map((i) => i.title), ['B', 'C', 'A']);
+  console.log('12 reorder from another device still pulled: ok');
+
   console.log('ALL SYNC CHECKS PASSED');
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });

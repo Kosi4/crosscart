@@ -300,13 +300,23 @@ function applyServerChanges(lists, shadow, listIds, serverLists, serverItems) {
     return null;
   };
 
+  // Where each item sat before this pull starts moving things around.
+  const localPlace = {};
+  for (const [name, items] of Object.entries(next)) {
+    items.forEach((item, index) => (localPlace[item.id] = { index, listId: listIds[name] }));
+  }
+
   for (const row of serverItems) {
     const found = locate(row.id);
     const shadowItem = shadow.items[row.id];
     // Items edited locally since the last sync keep the local edit; it gets pushed below.
+    // A move counts as an edit: the pull re-reads rows our last push touched, still
+    // holding the old position, and would otherwise undo a drag-reorder.
     if (found && shadowItem) {
       const localHash = rowHash(itemRow(next[found.name][found.index], shadowItem.listId, 0, shadow.userId));
-      if (localHash !== shadowItem.hash) continue;
+      const place = localPlace[row.id];
+      const moved = place && (place.index !== shadowItem.position || place.listId !== shadowItem.listId);
+      if (localHash !== shadowItem.hash || moved) continue;
     }
     if (row.deleted_at) {
       if (found) next[found.name].splice(found.index, 1);

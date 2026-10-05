@@ -1,0 +1,11 @@
+{
+  "about": "&amp; and &apos; in JSON-LD name are decoded; in-stock offer beats cheaper sold-out one",
+  "url": "https://www.jdsports.co.za/product/supply-demand-jacket/",
+  "isProductPage": true,
+  "expect": {
+    "title": "Supply & Demand Men's Jacket",
+    "image": "https://jdsports.co.za/img/sd-jacket.jpg",
+    "price": "999.00",
+    "currency": "ZAR"
+  }
+}

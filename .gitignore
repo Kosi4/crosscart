@@ -4,3 +4,4 @@ handoff.md
 data/
 graphify-out/
 skills-lock.json
+node_modules/

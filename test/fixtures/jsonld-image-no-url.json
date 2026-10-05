@@ -1,0 +1,8 @@
+{
+  "about": "unusable JSON-LD image falls through to og:image",
+  "url": "https://example-store.com/products/canvas-tote",
+  "expect": {
+    "title": "Canvas Tote",
+    "image": "https://example-store.com/og-fallback.jpg"
+  }
+}

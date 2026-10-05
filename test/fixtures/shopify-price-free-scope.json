@@ -1,0 +1,10 @@
+{
+  "about": "skips a product-info block with no price instead of giving up",
+  "url": "https://thesupermade.com/products/washed-tee",
+  "isProductPage": true,
+  "expect": {
+    "title": "Washed Tee",
+    "price": "985.00",
+    "currency": "ZAR"
+  }
+}

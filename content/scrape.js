@@ -94,7 +94,10 @@ window.Crosscart = window.Crosscart || {};
     const candidates = siteNameCandidates();
     if (!candidates.length) return title;
 
-    let parts = title.split(/\s*[|–—·]\s*|\s+-\s+/).filter((p) => p.trim());
+    // " : " is Amazon's separator ("Product : Amazon.co.za: Beauty"); a bare ":" stays,
+    // product names use it. "My Store" is the name Shopify gives an unnamed store.
+    title = title.replace(/^my store\s+/i, '');
+    let parts = title.split(/\s*[|–—·]\s*|\s+-\s+|\s+:\s+/).filter((p) => p.trim());
     // Trailing segments only, and never strip down to nothing.
     while (parts.length > 1) {
       const last = normalizeName(parts[parts.length - 1]);
@@ -180,6 +183,8 @@ window.Crosscart = window.Crosscart || {};
           const type = node['@type'];
           const types = Array.isArray(type) ? type : [type];
           if (!types.some((t) => typeof t === 'string' && /product/i.test(t))) continue;
+          // A review widget's "Product" for the store itself (Kitted SA) isn't this product.
+          if (window.Crosscart.detect.pointsAtHomepage(node.url)) continue;
 
           // A ProductGroup (Shopify, Farfetch, ...) rarely carries its own `offers` —
           // the price lives on each variant in `hasVariant[].offers` instead.
@@ -190,7 +195,7 @@ window.Crosscart = window.Crosscart || {};
           return {
             title: node.name || '',
             brand: brandName(node.brand),
-            image: imageUrl(node.image),
+            image: imageUrl(node.image) || (Array.isArray(node.hasVariant) ? imageUrl(node.hasVariant.map((v) => v.image)) : ''),
             price: offer.price,
             currency: offer.currency,
             url: node.url || window.location.href,
@@ -450,37 +455,81 @@ window.Crosscart = window.Crosscart || {};
   // Farfetch (and any site following schema.org properly) declares what varies
   // ("variesBy": ["https://schema.org/size"]) and puts the value on each variant
   // (variant.size = "31/32"). That beats parsing names, whose formats differ per site.
+  // A variant's value for a declared property: its own field (variant.size) or an
+  // additionalProperty with that name (Samsung: {name: 'storage', value: '256 GB｜12 GB'}).
+  function variantProp(variant, p) {
+    const own = propValue(variant[p]);
+    if (own) return own;
+    const extra = [].concat(variant.additionalProperty || []).find(
+      (a) => a && String(a.name || '').toLowerCase() === p.toLowerCase()
+    );
+    return extra ? propValue(extra.value) : '';
+  }
+
+  // Whatever the shopper has picked, as codes: checked inputs' values and data-*
+  // attributes (Samsung's option radios carry data-modelcode = the variant's sku).
+  function checkedCodes() {
+    const codes = new Set();
+    document.querySelectorAll('input:checked').forEach((input) => {
+      [input.value, ...Object.values(input.dataset)].forEach((c) => c && codes.add(String(c)));
+    });
+    return codes;
+  }
+
   function scrapeExplicitVariants(node) {
-    const props = (Array.isArray(node.variesBy) ? node.variesBy : [node.variesBy])
+    const variants = node.hasVariant;
+    const props = [].concat(node.variesBy || [])
       .map((p) => String(p || '').split(/[/#]/).pop())
-      .filter((p) => p && node.hasVariant.some((v) => propValue(v[p])));
+      .filter((p) => p && variants.some((v) => variantProp(v, p)));
     if (!props.length) return null;
 
     const label = (p) => p.charAt(0).toUpperCase() + p.slice(1);
+    const values = variants.map((v) => Object.fromEntries(props.map((p) => [label(p), variantProp(v, p)])));
+
+    // Colour named only inside the variant name ("Galaxy S26 Ultra 256 GB｜12 GB Black"):
+    // what's left once the product name and declared values are removed, if it differs
+    // between variants (a constant leftover is just the brand or title, not an option).
+    if (!props.some((p) => /colou?r/i.test(p))) {
+      const base = String(node.name || '');
+      const rest = variants.map((v, i) => {
+        let s = String(v.name || '');
+        if (base && s.startsWith(base)) s = s.slice(base.length);
+        Object.values(values[i]).forEach((val) => (s = s.replace(val, '')));
+        return s.replace(/^[\s|｜/,\-–—]+|[\s|｜/,\-–—]+$/g, '').trim();
+      });
+      if (rest.every(Boolean) && new Set(rest).size > 1) rest.forEach((r, i) => (values[i].Colour = r));
+    }
+
+    const names = Object.keys(values[0]);
     const options = {};
-    props.forEach((p) => {
-      options[label(p)] = [...new Set(node.hasVariant.map((v) => propValue(v[p])).filter(Boolean))];
-    });
+    names.forEach((n) => (options[n] = [...new Set(values.map((v) => v[n]).filter(Boolean))]));
 
     const currentVariantId = new URLSearchParams(window.location.search).get('variant');
-    const chosen =
-      currentVariantId &&
-      node.hasVariant.find((v) =>
-        [lastLongNumber((v.offers || {}).url), lastLongNumber(v['@id']), String(v.sku || '')].includes(currentVariantId)
-      );
+    const codes = checkedCodes();
+    const chosenIndex = variants.findIndex((v) => {
+      const ids = [lastLongNumber((v.offers || {}).url), lastLongNumber(v['@id']), String(v.sku || '')];
+      return (currentVariantId && ids.includes(currentVariantId)) || (v.sku && codes.has(String(v.sku)));
+    });
 
     const selected = {};
-    props.forEach((p) => {
-      const value = chosen ? propValue(chosen[p]) : shownOption(options[label(p)]);
-      if (value) selected[label(p)] = value;
+    names.forEach((n) => {
+      const value = chosenIndex >= 0 ? values[chosenIndex][n] : shownOption(options[n]);
+      if (value) selected[n] = value;
     });
-    const complete = props.every((p) => selected[label(p)]);
+    const complete = names.every((n) => selected[n]);
+
+    // The chosen variant's own price beats the page-wide cheapest one (a 512 GB phone
+    // isn't the 256 GB price).
+    const offer = chosenIndex >= 0 ? pickOffer(variants[chosenIndex].offers) : null;
 
     return {
       variantSelected: complete ? selected : {},
       variantOptions: options,
       variantSource: 'jsonld',
       variantConfidence: complete ? 'high' : 'low',
+      variantPrice: offer && offer.price ? offer : null,
+      // Samsung's page-wide og:image is its logo; the chosen model has its own photo.
+      variantImage: chosenIndex >= 0 ? imageUrl(variants[chosenIndex].image) : '',
     };
   }
 
@@ -613,10 +662,55 @@ window.Crosscart = window.Crosscart || {};
     return { variantSelected: selected, variantOptions: options, variantSource: 'woo_form', variantConfidence: 'high' };
   }
 
+  // VTEX FastStore (jdsports.co.za): each picker is [data-fs-sku-selector]; every
+  // option carries title="Size: XS" and data-fs-sku-selector-checked on the chosen one.
+  function scrapeVariantFromSkuSelector() {
+    const pickers = document.querySelectorAll('[data-fs-sku-selector]');
+    if (!pickers.length) return null;
+
+    const options = {};
+    const selected = {};
+    let complete = true;
+    pickers.forEach((picker) => {
+      const items = picker.querySelectorAll('[data-fs-sku-selector-option]');
+      if (!items.length) return;
+      const heading = (picker.querySelector('[data-fs-sku-selector-title]')?.textContent || '').split(':')[0].trim();
+      let name = heading;
+      const values = [];
+      let chosen = '';
+      items.forEach((item) => {
+        const title = item.getAttribute('title') || '';
+        const match = title.match(/^([^:]+):\s*(.+)$/);
+        if (match && !name) name = match[1].trim();
+        const value = (match ? match[2] : item.textContent).trim();
+        if (!value) return;
+        values.push(value);
+        if (item.getAttribute('data-fs-sku-selector-checked') === 'true') chosen = value;
+      });
+      if (!name || !values.length) return;
+      options[name] = values;
+      if (chosen) selected[name] = chosen;
+      else complete = false;
+    });
+    if (!Object.keys(options).length) return null;
+
+    return {
+      variantSelected: complete ? selected : {},
+      variantOptions: options,
+      variantSource: 'dom_label',
+      variantConfidence: complete ? 'high' : 'low',
+    };
+  }
+
   // Nothing structured found (or it wasn't a ProductGroup) — whatever the DOM
   // summary shows is all there is, so it can only ever be low confidence.
+  // With nothing structured to check against, any "Label: Value" on the page would
+  // pass (it saved "Phone: +27…", "VAT Number: …", "Magic: The Gathering"), so only
+  // names that are actually product options count here.
+  const OPTION_NAMES = /^(size|colou?r|fit|length|width|waist|inseam|style|storage|capacity|finish|shade|scent|flavou?r)$/i;
+
   function scrapeVariantFromDom() {
-    const pairs = parseLabelValuePairs();
+    const pairs = parseLabelValuePairs().filter(({ name }) => OPTION_NAMES.test(name));
     if (!pairs.length) return null;
     const selected = {};
     const options = {};
@@ -631,6 +725,7 @@ window.Crosscart = window.Crosscart || {};
     return (
       scrapeVariantFromJsonLd() ||
       scrapeVariantFromWooForm() ||
+      scrapeVariantFromSkuSelector() ||
       scrapeVariantFromDom() || {
         variantSelected: {},
         variantOptions: {},
@@ -656,6 +751,8 @@ window.Crosscart = window.Crosscart || {};
     const merged = {};
     for (const field of ['title', 'image', 'price', 'currency', 'url']) {
       for (const tier of tiers) {
+        // A site logo is never the product photo (Samsung's og:image is its logo).
+        if (field === 'image' && tier && /logo/i.test(String(tier.image || '').split('?')[0])) continue;
         if (tier && tier[field]) {
           merged[field] = tier[field];
           break;
@@ -696,6 +793,13 @@ window.Crosscart = window.Crosscart || {};
       merged.title = withBrand(stripSiteSuffix(agentSites.cleanTitle(merged.title)), jsonLd.brand, hostname);
     }
 
+    const { variantPrice, variantImage, ...variant } = scrapeVariant();
+    if (variantPrice) {
+      merged.price = variantPrice.price;
+      if (variantPrice.currency) merged.currency = variantPrice.currency;
+    }
+    if (variantImage) merged.image = variantImage;
+
     // Shopify og:image is often http:// or protocol-relative, and microdata src can be relative;
     // store an absolute https URL so the image loads on https pages.
     if (merged.image) {
@@ -716,7 +820,7 @@ window.Crosscart = window.Crosscart || {};
     merged.quantity = 1;
     merged.savedAt = Date.now();
 
-    Object.assign(merged, scrapeVariant());
+    Object.assign(merged, variant);
 
     return merged;
   }

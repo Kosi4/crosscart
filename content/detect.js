@@ -34,7 +34,20 @@ window.Crosscart = window.Crosscart || {};
     const type = node['@type'];
     if (!type) return false;
     const types = Array.isArray(type) ? type : [type];
-    return types.some((t) => typeof t === 'string' && /^(Product|Offer)$/i.test(t));
+    // ProductGroup: a product with variants (Samsung has only that, no plain Product).
+    if (!types.some((t) => typeof t === 'string' && /^(Product|ProductGroup|Offer)$/i.test(t))) return false;
+    return !pointsAtHomepage(node.url);
+  }
+
+  // Review widgets (Trustindex on kittedsa.co.za) mark the store itself up as a Product
+  // whose url is the homepage. No real product lives at "/", so that node doesn't count.
+  function pointsAtHomepage(url) {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      return new URL(url, window.location.href).pathname.replace(/\/+$/, '') === '';
+    } catch (e) {
+      return false;
+    }
   }
 
   function hasProductMeta() {
@@ -53,14 +66,17 @@ window.Crosscart = window.Crosscart || {};
     return /\/(product|dp|item|products|shop)\//i.test(window.location.pathname);
   }
 
+  // One buy button means a product page; a grid of them (a homepage or category
+  // page) means a listing, where saving would capture the store, not a product.
   function hasProductDomSignals() {
     const ctaPattern = /add to cart|buy now|add to bag/i;
     const buttons = document.querySelectorAll('button, a[role="button"], input[type="submit"]');
+    let count = 0;
     for (const btn of buttons) {
       const text = (btn.textContent || btn.value || '').trim();
-      if (ctaPattern.test(text)) return true;
+      if (ctaPattern.test(text)) count++;
     }
-    return false;
+    return count > 0 && count <= 3;
   }
 
   function isProductPage() {
@@ -79,6 +95,7 @@ window.Crosscart = window.Crosscart || {};
     hasProductMeta,
     hasProductMicrodata,
     hasProductUrlPath,
+    pointsAtHomepage,
     hasProductDomSignals,
     collectJsonLdNodes,
   };

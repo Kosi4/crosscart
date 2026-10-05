@@ -7,6 +7,13 @@ const { webcrypto } = require('crypto');
 const ROOT = require('path').resolve(__dirname, '..');
 const USER = '11111111-1111-4111-8111-111111111111';
 
+// Real chrome.storage hands objects back with their keys sorted (at every level); the fake must too.
+const sortKeys = (v) => (Array.isArray(v) ? v.map(sortKeys) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sortKeys(v[k])])) : v);
+
+// Postgres jsonb returns object keys shortest first, then by bytes: {Size, Color}, never {Color, Size}.
+const pgOrder = (o) => Object.fromEntries(Object.keys(o || {}).sort((a, b) => a.length - b.length || (a < b ? -1 : a > b ? 1 : 0)).map((k) => [k, o[k]]));
+const pgRow = (r) => ('variant_selected' in r ? { ...r, variant_selected: pgOrder(r.variant_selected), variant_options: pgOrder(r.variant_options) } : r);
+
 function makeWorld(initialLocal) {
   const store = JSON.parse(JSON.stringify(initialLocal));
   const changeListeners = [];
@@ -18,7 +25,7 @@ function makeWorld(initialLocal) {
     storage: {
       onChanged: { addListener: (fn) => changeListeners.push(fn), removeListener() {} },
       local: {
-        get: (keys, cb) => cb(Object.fromEntries([].concat(keys).filter((k) => k in store).map((k) => [k, JSON.parse(JSON.stringify(store[k]))]))),
+        get: (keys, cb) => cb(Object.fromEntries([].concat(keys).filter((k) => k in store).map((k) => [k, sortKeys(store[k])]))),
         set: (data, cb) => {
           const changes = {};
           for (const [k, v] of Object.entries(data)) { changes[k] = { newValue: JSON.parse(JSON.stringify(v)) }; store[k] = JSON.parse(JSON.stringify(v)); }
@@ -57,7 +64,7 @@ function makeWorld(initialLocal) {
       const upd = u.searchParams.get('updated_at');
       if (del === 'is.null') rows = rows.filter((r) => !r.deleted_at);
       if (upd) rows = rows.filter((r) => r.updated_at > upd.replace('gt.', ''));
-      return res(200, JSON.parse(JSON.stringify(rows)));
+      return res(200, JSON.parse(JSON.stringify(rows.map(pgRow))));
     }
     if (method === 'POST') {
       const rows = JSON.parse(opts.body);
@@ -226,6 +233,22 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
   await w5.send({ type: 'syncNow' });
   assert.deepStrictEqual(w5.store.cartLists.Shoes.map((i) => i.title), ['A', 'C', 'D']);
   console.log('14 item added on another device still pulled: ok');
+
+  // chrome.storage sorts object keys, so an item read back has {Color, Size} where the page wrote {Size, Color}.
+  // Key order alone must not count as a local edit, or the server's fixes get pushed over.
+  const shirt = { ...item('1789-shirt', 'Shirt: Amazon.co.za', 'https://shop.com/s', '10', 'USD'), variantSelected: { Size: 'S', Color: 'Gray', Junk: 'VAT' }, variantOptions: { Size: ['S', 'M'], Color: ['Gray'] } };
+  const w6 = makeWorld({ cartLists: { Tops: [shirt] }, activeList: 'Tops' });
+  await w6.send({ type: 'linkExtension', tokenHash: 'hash' });
+  for (let i = 0; i < 3; i++) await w6.send({ type: 'syncNow' });
+  before = w6.requests.length;
+  await w6.send({ type: 'syncNow' });
+  assert.deepStrictEqual(w6.requests.slice(before).filter((x) => !x.startsWith('GET')), [], 'a quiet sync must not re-push');
+  Object.assign(w6.db.list_items[0], { title: 'Shirt', variant_selected: { Size: 'S', Color: 'Gray' }, updated_at: w6.now() });
+  for (let i = 0; i < 3; i++) await w6.send({ type: 'syncNow' });
+  assert.strictEqual(w6.db.list_items[0].title, 'Shirt');
+  assert.deepStrictEqual(pgOrder(w6.db.list_items[0].variant_selected), { Size: 'S', Color: 'Gray' });
+  assert.strictEqual(w6.store.cartLists.Tops[0].title, 'Shirt');
+  console.log('15 server fix survives chrome.storage key sorting: ok');
 
   console.log('ALL SYNC CHECKS PASSED');
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });

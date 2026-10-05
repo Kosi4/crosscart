@@ -189,10 +189,29 @@ function itemRow(item, listId, position, userId) {
   };
 }
 
+// Key order must not matter: chrome.storage hands objects back with sorted keys and Postgres
+// jsonb returns its own order, so a plain JSON.stringify saw every variant item as "edited
+// here", re-pushed it on every sync and pushed it over fixes made on the server.
+function sortKeys(value) {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map((k) => [k, sortKeys(value[k])]));
+}
+
 // Change detection ignores position (compared separately) and saved_at (never changes).
 function rowHash(row) {
   const { position, saved_at, deleted_at, ...rest } = row;
-  return JSON.stringify(rest);
+  return JSON.stringify(sortKeys(rest));
+}
+
+// Snapshots saved before key order was ignored hold order-sensitive hashes; re-sort them once
+// so the first sync after the update doesn't mistake every item for a local edit.
+function upgradeShadowHashes(shadow) {
+  for (const entry of Object.values(shadow.items || {})) {
+    try {
+      entry.hash = JSON.stringify(sortKeys(JSON.parse(entry.hash)));
+    } catch (e) {}
+  }
 }
 
 function localItem(row) {
@@ -343,6 +362,7 @@ async function runSync() {
   const previous = stored[STORAGE_KEYS.SYNC_STATE];
   const firstSync = !previous || previous.userId !== userId;
   const shadow = firstSync ? { userId, cursor: null, listIds: {}, lists: {}, items: {} } : previous;
+  upgradeShadowHashes(shadow);
 
   let { lists, changed } = normalizeLocal(stored[STORAGE_KEYS.CART_LISTS] || {});
   const listIds = { ...shadow.listIds };

@@ -5,6 +5,7 @@
       "name": "crosscart-preview",
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "python3 -m http.server \"$PORT\""],
+      "port": 55983,
       "autoPort": true
     }
   ]

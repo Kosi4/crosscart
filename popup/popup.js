@@ -14,6 +14,7 @@
 
   function cacheEls() {
     els.currencySelect = document.getElementById('currency-select');
+    els.openWebBtn = document.getElementById('open-web-btn');
     els.clearAllBtn = document.getElementById('clear-all-btn');
     els.listSelect = document.getElementById('list-select');
     els.newListBtn = document.getElementById('new-list-btn');
@@ -125,6 +126,8 @@
       renderCurrentView();
     });
 
+    // TODO: swap for the real deployed origin at launch (see handoff §7, Phase 6).
+    els.openWebBtn.href = 'http://localhost:55983/web/#/carts';
     els.clearAllBtn.addEventListener('click', handleClearAll);
 
     els.listSelect.addEventListener('change', () => {
@@ -170,6 +173,9 @@
 
   async function init() {
     cacheEls();
+    await C.theme.init();
+    // Pull changes from other devices whenever the popup opens; results arrive via storage change events.
+    chrome.runtime.sendMessage({ type: 'syncNow' }).catch(() => {});
 
     const { lists, activeList } = await listsApi.loadLists();
     state.lists = lists;

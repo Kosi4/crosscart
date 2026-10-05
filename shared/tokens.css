@@ -1,0 +1,79 @@
+:root {
+  --cc-accent: #52525b;
+  --cc-accent-hover: #3f3f46;
+  --cc-danger: #b91c1c;
+  --cc-danger-soft: rgba(185, 28, 28, 0.1);
+  --cc-warn: #b45309;
+  --cc-warn-soft: rgba(245, 158, 11, 0.16);
+
+  --cc-bg: #e4e4e7;
+  --cc-surface: #ffffff;
+  --cc-surface-hover: #f4f4f5;
+  --cc-border: #d4d4d8;
+  --cc-border-strong: #a1a1aa;
+
+  --cc-text: #18181b;
+  --cc-text-muted: #52525b;
+  --cc-text-faint: #a1a1aa;
+
+  --cc-glass-fill-top: rgba(255, 255, 255, 0.65);
+  --cc-glass-fill-bottom: rgba(255, 255, 255, 0.28);
+  --cc-glass-border: rgba(255, 255, 255, 0.55);
+  --cc-glass-fill-primary-top: rgba(82, 82, 91, 0.88);
+  --cc-glass-fill-primary-bottom: rgba(63, 63, 70, 0.9);
+  --cc-glass-border-primary: rgba(255, 255, 255, 0.3);
+  --cc-glass-highlight: rgba(255, 255, 255, 0.7);
+  --cc-glass-shadow: 0 1px 3px rgba(24, 24, 27, 0.1), 0 8px 20px rgba(24, 24, 27, 0.08);
+  --cc-on-primary: #ffffff;
+
+  --cc-radius-sm: 12px;
+  --cc-radius-md: 18px;
+  --cc-radius-lg: 24px;
+  --cc-radius-pill: 999px;
+
+  --cc-space-1: 4px;
+  --cc-space-2: 8px;
+  --cc-space-3: 12px;
+  --cc-space-4: 16px;
+
+  --cc-shadow-sm: 0 1px 2px rgba(24, 24, 27, 0.06);
+  --cc-shadow-md: 0 4px 16px rgba(24, 24, 27, 0.08);
+  --cc-shadow-lg: 0 12px 32px rgba(24, 24, 27, 0.16);
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --cc-accent: #d4d4d8;
+  --cc-accent-hover: #e4e4e7;
+  --cc-danger: #fb7185;
+  --cc-danger-soft: rgba(251, 113, 133, 0.14);
+  --cc-warn: #fbbf24;
+  --cc-warn-soft: rgba(245, 158, 11, 0.18);
+
+  --cc-bg: #232326;
+  --cc-surface: #2c2c30;
+  --cc-surface-hover: #313135;
+  --cc-border: #3f3f46;
+  --cc-border-strong: #52525b;
+
+  --cc-text: #fafafa;
+  --cc-text-muted: #a1a1aa;
+  --cc-text-faint: #71717a;
+
+  --cc-glass-fill-top: rgba(255, 255, 255, 0.16);
+  --cc-glass-fill-bottom: rgba(255, 255, 255, 0.05);
+  --cc-glass-border: rgba(255, 255, 255, 0.16);
+  --cc-glass-fill-primary-top: rgba(228, 228, 231, 0.92);
+  --cc-glass-fill-primary-bottom: rgba(212, 212, 216, 0.92);
+  --cc-glass-border-primary: rgba(255, 255, 255, 0.3);
+  --cc-glass-highlight: rgba(255, 255, 255, 0.35);
+  --cc-glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.4);
+  --cc-on-primary: #18181b;
+
+  --cc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --cc-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --cc-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}

@@ -16,24 +16,26 @@ Then any time:
 npm test
 ```
 
-`ok` means that page scraped the way its `.json` says. `not ok` prints which field was wrong, what it expected and what it actually got. `# TODO` lines are known bugs (see below) and don't count as failures.
+That runs every `tests/*.check.js` (lists, pricing, sync and this one). To run just the scraper: `node tests/scrape.check.js`.
+
+`ok` means that page scraped the way its `.json` says. `FAIL` prints which field was wrong, what it expected and what it actually got. `todo` lines are known bugs (see below) and don't count as failures.
 
 ## How it works
 
-Every test is a pair of files in `test/fixtures/` with the same name:
+Every scraper check is a pair of files in `tests/fixtures/` with the same name:
 
 - `some-page.html` is the page. A trimmed copy is fine, as long as it still has the bits that matter (the JSON-LD, the price markup, the meta tags).
 - `some-page.json` says where the page lives and what the scraper should get from it.
 
-`fixtures.test.js` loops over every `.json`, opens the matching `.html` in jsdom at that URL, runs the real `content/` scripts on it (the same ones `manifest.json` injects), then compares. There's no list to update: drop a new pair in and it runs.
+`scrape.check.js` loops over every `.json`, opens the matching `.html` in jsdom at that URL, runs the real `content/` scripts on it (the same ones `manifest.json` injects), then compares. There's no list to update: drop a new pair in and it runs.
 
 ## Adding a page
 
 Say a store saves the wrong price.
 
-1. Open the product page in Chrome, right-click, **View page source**, and save it as `test/fixtures/storename-what-broke.html`. (View source gives the HTML the server sent. If the price only shows up after JavaScript runs, use DevTools instead: Elements panel, right-click `<html>`, Copy, Copy outerHTML.)
+1. Open the product page in Chrome, right-click, **View page source**, and save it as `tests/fixtures/storename-what-broke.html`. (View source gives the HTML the server sent. If the price only shows up after JavaScript runs, use DevTools instead: Elements panel, right-click `<html>`, Copy, Copy outerHTML.)
 2. Optional but nice: delete the huge chunks that don't matter (inline scripts, svg icons, the footer) so the file is readable. Run the test after trimming to make sure it still breaks the same way.
-3. Make `test/fixtures/storename-what-broke.json`:
+3. Make `tests/fixtures/storename-what-broke.json`:
 
    ```json
    {
@@ -57,4 +59,4 @@ Say a store saves the wrong price.
 
 ## Known bugs (`todo`)
 
-If you find a bug but aren't fixing it yet, add `"todo": "what's wrong"` to the `.json`. The test still runs and prints the failure, but doesn't break the suite. Delete the line once it's fixed. Right now `not-product-category` is one of these: any page with an "Add to cart" button counts as a product page, so category grids get the save button too.
+If you find a bug but aren't fixing it yet, add `"todo": "what's wrong"` to the `.json`. The check still runs and prints it as `todo`, but doesn't fail. Once the bug is fixed it prints `fixed?` instead, telling you to delete the line. Right now `not-product-category` is one of these: any page with an "Add to cart" button counts as a product page, so category grids get the save button too.

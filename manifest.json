@@ -3,8 +3,11 @@
   "name": "CrossCart",
   "version": "1.0.0",
   "description": "Save products from any e-commerce site into a local multi-list cart with currency conversion.",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "alarms"],
   "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/sync.js"
+  },
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "CrossCart",
@@ -22,6 +25,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
+      "exclude_matches": ["http://localhost/web/*"],
       "js": [
         "shared/constants.js",
         "shared/currency.js",
@@ -36,6 +40,11 @@
       ],
       "css": ["content/content.css"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost/web/*"],
+      "js": ["shared/constants.js", "shared/storage.js", "content/web-bridge.js"],
+      "run_at": "document_start"
     }
   ]
 }

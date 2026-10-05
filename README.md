@@ -38,7 +38,7 @@ Number formats aren't universal (`$1,499.95` vs `R1 499,95` vs `1.234,56 €`), 
 
 ## Tests
 
-The scraper is tested against saved product pages in `test/fixtures/`. Run `npm install` once, then `npm test`. See [test/README.md](test/README.md) for how to add a page when a store scrapes wrong.
+`tests/*.check.js` are plain Node scripts. The scraper one runs against saved product pages in `tests/fixtures/` and needs jsdom, so run `npm install` once, then `npm test` runs them all. See [tests/README.md](tests/README.md) for how to add a page when a store scrapes wrong.
 
 ## Structure
 

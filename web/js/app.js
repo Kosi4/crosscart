@@ -946,7 +946,16 @@
         ? `<button class="cc-btn cc-btn-primary cc-checkout-all" data-action="checkoutAll">${state.mode === 'real' ? 'Estimate all carts' : 'Check out all carts'} · ${plural(allItems.length, 'item')}</button>`
         : '';
 
-    return `${notice}<div class="cc-grid-2">${cards}</div>${totalPill}${checkoutAllButton}`;
+    // A new account (with the extension) has nothing saved yet: say how to start instead of showing a blank page.
+    const empty =
+      !notice && !allItems.length
+        ? `<div class="cc-card cc-notice">
+            <div class="cc-word" style="font-size:17px">Nothing saved yet</div>
+            <div class="cc-muted" style="margin-top:6px">Open any product page in Chrome and press <strong>Add to CrossCart</strong>. It shows up here with one running total.</div>
+          </div>`
+        : '';
+
+    return `${notice}${empty}<div class="cc-grid-2">${cards}</div>${totalPill}${checkoutAllButton}`;
   }
 
   function cartView(totals) {
@@ -1046,7 +1055,13 @@
 
     return `
       <div class="cc-two-col">
-        <div class="cc-stack">${groups}</div>
+        <div class="cc-stack">${
+          groups ||
+          `<div class="cc-card cc-notice">
+            <div class="cc-word" style="font-size:17px">This cart is empty</div>
+            <div class="cc-muted" style="margin-top:6px">Press <strong>Add to CrossCart</strong> on a product page and choose ${esc(state.activeCart || 'this cart')}.</div>
+          </div>`
+        }</div>
         <div class="cc-summary cc-glass">
           <div class="cc-summary-title">Summary</div>
           ${summaryRows(totals)}

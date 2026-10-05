@@ -1,17 +1,20 @@
 # CrossCart
 
-A Chrome extension that saves products from any online store into one local cart, so comparing options across sites doesn't mean a dozen open tabs and a mental tally of what costs what.
+Save products from any online store into one cart, with one running total in your currency, so comparing options across sites doesn't mean a dozen open tabs and a mental tally of what costs what.
 
-A floating "+ Add to CrossCart" button appears on pages it recognizes as product pages. Clicking it opens a small picker right there on the page to choose a list — no need to open the extension itself. The toolbar popup holds everything saved: multiple named lists, quantities, drag-to-reorder, and a running total converted to whichever currency you actually think in.
+- **Chrome extension:** a floating "+ Add to CrossCart" button on product pages. It reads the product's name, price, picture and the size/colour you picked, and a small picker saves it to one of your carts. The toolbar popup holds your carts: quantities, drag-to-reorder, renaming, totals.
+- **Web app (`web/`):** the same carts on a bigger screen, grouped by store, with size/colour pickers and an estimate of what everything would cost. Paying every store at once ("pay once") is coming later; for now checkout is a waitlist.
+- **Account sync:** sign in with Google or an email link and your carts follow you between devices (Supabase).
 
-## Installing
-
-Not on the Chrome Web Store — load it directly:
+## Running it locally
 
 1. Clone this repo
-2. Open `chrome://extensions`
-3. Enable **Developer mode**
-4. **Load unpacked** → select the repo folder
+2. Open `chrome://extensions`, enable **Developer mode**, **Load unpacked** → the repo folder
+3. Serve the web app from the repo root: `python3 -m http.server 55983`, then open `http://localhost:55983/web/`
+
+Checks (plain Node, no install): `node tests/sync.check.js`, `pricing`, `lists`, `release`. The popup and scraper checks (`popup.check.js`, `scrape.check.js`) need jsdom and saved store pages in `../crosscart-dev`.
+
+Release: set `PROD_WEB_ORIGIN` in `shared/config.js`, then `node scripts/release.js` builds `dist/crosscart-<version>.zip` for the Chrome Web Store. Hosting config for the web app is in `vercel.json`.
 
 ## The scraping problem
 
@@ -38,30 +41,31 @@ Number formats aren't universal (`$1,499.95` vs `R1 499,95` vs `1.234,56 €`), 
 
 ## Structure
 
-Plain JavaScript, Manifest V3, no build step, no dependencies. Content scripts don't reliably support `type="module"`, so instead of a bundler, each file attaches to a shared `window.Crosscart` namespace and the manifest loads them in dependency order.
+Plain JavaScript, Manifest V3, no build step, no runtime dependencies. Content scripts don't reliably support `type="module"`, so each file attaches to a shared `window.Crosscart` namespace and pages load them in dependency order.
 
 ```
 manifest.json
-icons/                 extension icon set
-shared/                 used by both the content script and the popup
-    constants.js          storage keys, supported currencies
-    currency.js           currency normalization + formatting
-    storage.js            chrome.storage wrapper
-    lists.js              list CRUD, dedupe-on-save
-content/                 injected into every page
-    detect.js               product-page heuristics
-    scrape.js               the four-tier scraper, price/title cleanup
-    agent-sites.js          site-name stripping
-    nav-watch.js             SPA route-change detection (event-driven, no polling)
-    picker.js                the in-page "save to list" popup
-    content.js                floating button + orchestration
-popup/                  the toolbar popup
-    popup.js                 state + event wiring
-    render.js                DOM rendering
-    dnd.js                   drag-and-drop reordering
-    currency-rates.js         exchange rate fetch/cache, with a static fallback
+background/sync.js       service worker: the extension's own sign-in session, two-way sync with Supabase
+content/                 injected into store pages
+    detect.js              is this a product page?
+    scrape.js              the four-tier scraper, variants, price/title cleanup
+    agent-sites.js         site-name stripping
+    nav-watch.js           single-page-app route changes
+    picker.js              the in-page "save to cart" picker (follows light/dark)
+    content.js             floating button
+    web-bridge.js          connects the web app to the extension's storage
+shared/                  used by the extension and the web app
+    config.js              the web app's address and error-report endpoint (one place)
+    constants.js, currency.js, currency-rates.js, lists.js, pricing.js, storage.js, theme.js, dnd.js, dom.js
+    monitor.js             uncaught errors → Sentry (via supabase/functions/report-error)
+    tokens.css             colours, radii, Instrument Sans
+popup/                   the toolbar popup
+web/                     web app (index.html, js/, css/, privacy.html, terms.html)
+supabase/                database migrations and edge functions (extension-link, report-error)
+scripts/release.js       builds the Chrome Web Store zip
+tests/                   node checks
 ```
 
 ## Design
 
-Gray, translucent "liquid glass" popup UI — layered backdrop blur, pill-shaped controls — with light/dark mode via `prefers-color-scheme`.
+Grey, translucent "liquid glass" surfaces with pill controls and Instrument Sans for headings, from a Claude Design handoff. Light and dark mode are a setting shared by the popup, web app and the in-page button.

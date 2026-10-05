@@ -21,11 +21,11 @@ window.Crosscart = window.Crosscart || {};
       if (!response.ok) throw new Error('rate fetch failed');
       const data = await response.json();
       const record = { rates: data.rates, fetchedAt: Date.now(), base: 'USD' };
-      await storage.setStorage({ [STORAGE_KEYS.EXCHANGE_RATES]: record });
+      await storage.setStorage({ [STORAGE_KEYS.EXCHANGE_RATES]: record }).catch(() => {}); // no cache without the extension
       return record;
     } catch (e) {
       const record = { rates: FALLBACK_RATES, fetchedAt: Date.now(), base: 'USD' };
-      await storage.setStorage({ [STORAGE_KEYS.EXCHANGE_RATES]: record });
+      await storage.setStorage({ [STORAGE_KEYS.EXCHANGE_RATES]: record }).catch(() => {}); // no cache without the extension
       return record;
     }
   }

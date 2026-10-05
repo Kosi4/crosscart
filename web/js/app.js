@@ -18,6 +18,7 @@
     plan: 'free',
     waitlisted: false,
     saveBroken: false,
+    readOnly: false,
     confirmDelete: false,
     deleteBusy: false,
     deleteError: '',
@@ -182,10 +183,23 @@
 
     state.extension = await storage.isAvailable();
     if (!state.extension) {
+      // No extension (a phone, another browser): show the account's carts read-only.
       state.carts = {};
       state.activeCart = null;
+      try {
+        state.carts = await api.loadAccountLists();
+        state.readOnly = true;
+        state.activeCart = Object.keys(state.carts)[0] || null;
+        state.waitlisted = await api.isOnWaitlist();
+        state.rates = (await currencyRates.fetchExchangeRates()).rates;
+      } catch (e) {
+        state.readOnly = false;
+        C.monitor.report(e, 'web-readonly');
+        console.warn('CrossCart: could not load carts from the account', e);
+      }
       return;
     }
+    state.readOnly = false;
 
     state.plan = await api.getPlan();
     state.waitlisted = await api.isOnWaitlist();
@@ -204,6 +218,7 @@
   // render, then again on the latest lists from storage before saving: writing this page's
   // copy back wholesale would undo anything another tab or a sync changed since it loaded.
   async function commitCarts(op) {
+    if (state.readOnly) return; // edits need the extension (it owns the carts and their sync)
     state.carts = op(state.carts);
     render();
     if (state.mode !== 'real') return;
@@ -653,7 +668,7 @@
   const HOLD_SLOP_PX = 8;
 
   root.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || drag) return;
+    if (event.button !== 0 || drag || state.readOnly) return;
     const touch = event.pointerType === 'touch';
     const base = { startY: event.clientY, pointerId: event.pointerId, active: false, touch };
     const row = event.target.closest('[data-store] > .cc-row');
@@ -913,7 +928,7 @@
 
   function cartsView() {
     const notice =
-      state.mode === 'real' && state.extension === false
+      state.mode === 'real' && state.extension === false && !state.readOnly
         ? `
         <div class="cc-card cc-notice">
           <div style="font-weight:700;font-size:15px">CrossCart extension not detected</div>
@@ -1338,7 +1353,7 @@
             <button class="cc-link-danger" data-action="askDeleteAccount">Delete account</button>`;
 
     return `
-      <div class="cc-shell">
+      <div class="cc-shell${state.readOnly ? ' cc-readonly' : ''}">
         <aside class="cc-side">
           <button class="cc-side-brand" data-action="goLanding">
             <img src="../icons/icon48.png" alt="" style="width:24px;height:24px;border-radius:7px" />
@@ -1368,6 +1383,14 @@
               ${SUPPORTED_CURRENCIES.map((c) => `<option value="${c}" ${c === state.currency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
           </div>
+          ${
+            state.mode === 'real' && state.readOnly
+              ? `<div class="cc-card cc-notice" role="status">
+                  <div class="cc-word" style="font-size:15px">Viewing your carts</div>
+                  <div class="cc-muted" style="margin-top:4px">To add, change or reorder items, use Chrome on a computer with the CrossCart extension.</div>
+                </div>`
+              : ''
+          }
           ${
             state.mode === 'real' && state.confirmDelete
               ? `<div class="cc-card cc-notice cc-notice-row" role="alertdialog" aria-label="Delete account">

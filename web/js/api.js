@@ -167,6 +167,44 @@ window.Crosscart = window.Crosscart || {};
     await supabase.auth.signOut();
   }
 
+  // Carts read straight from the account, for browsers without the extension (phones).
+  // Same item shape the extension stores (see background/sync.js localItem).
+  async function loadAccountLists() {
+    const [lists, items] = await Promise.all([
+      supabase.from('lists').select('id,name,position').is('deleted_at', null).order('position'),
+      supabase.from('list_items').select('*').is('deleted_at', null).order('position'),
+    ]);
+    if (lists.error) throw lists.error;
+    if (items.error) throw items.error;
+    const byId = {};
+    const out = {};
+    lists.data.forEach((l) => {
+      byId[l.id] = l.name;
+      out[l.name] = [];
+    });
+    items.data.forEach((row) => {
+      const name = byId[row.list_id];
+      if (!name) return;
+      const minor = row.saved_price_minor;
+      out[name].push({
+        id: row.id,
+        title: row.title,
+        domain: row.domain,
+        url: row.url,
+        image: row.image_url || '',
+        price: minor === null || minor === undefined ? '' : row.saved_currency === 'JPY' ? minor : minor / 100,
+        currency: row.saved_currency || 'USD',
+        quantity: row.quantity,
+        savedAt: Date.parse(row.saved_at) || 0,
+        variantSelected: row.variant_selected || {},
+        variantOptions: row.variant_options || {},
+        variantSource: row.variant_source || null,
+        variantConfidence: row.variant_confidence || null,
+      });
+    });
+    return out;
+  }
+
   // Removes the account and, by cascade, every list, item and waitlist row (public.delete_my_account).
   async function deleteAccount() {
     const { error } = await supabase.rpc('delete_my_account');
@@ -228,6 +266,7 @@ window.Crosscart = window.Crosscart || {};
     isOnWaitlist,
     joinWaitlist,
     deleteAccount,
+    loadAccountLists,
     signInWithGoogle,
     sendEmailSignIn,
     verifyEmailCode,

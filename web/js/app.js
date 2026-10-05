@@ -814,6 +814,11 @@
             )
             .join('')}
         </div>
+
+        <footer class="cc-landing-foot">
+          <a href="privacy.html">Privacy</a>
+          <a href="terms.html">Terms</a>
+        </footer>
       </div>`;
   }
 

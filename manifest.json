@@ -2,9 +2,8 @@
   "manifest_version": 3,
   "name": "CrossCart",
   "version": "1.0.0",
-  "description": "Save products from any e-commerce site into a local multi-list cart with currency conversion.",
-  "permissions": ["storage", "activeTab", "alarms"],
-  "host_permissions": ["<all_urls>"],
+  "description": "Save products from any online store into named carts, with one running total in your currency, synced to your account.",
+  "permissions": ["storage", "alarms"],
   "background": {
     "service_worker": "background/sync.js"
   },

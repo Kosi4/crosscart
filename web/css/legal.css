@@ -1,0 +1,10 @@
+/* Privacy policy and terms: plain reading pages on the shared tokens. */
+body { margin: 0; background: var(--cc-bg, #fafafa); color: var(--cc-text); font-family: var(--cc-font-sans); -webkit-font-smoothing: antialiased; }
+.legal { max-width: 680px; margin: 0 auto; padding: 40px 20px 80px; font-size: 15px; line-height: 1.6; }
+.legal h1 { font-family: var(--cc-font-display); letter-spacing: var(--cc-tracking-display); font-size: 34px; line-height: 1.1; margin: 22px 0 4px; }
+.legal h2 { font-family: var(--cc-font-display); letter-spacing: -0.02em; font-size: 18px; margin: 30px 0 6px; }
+.legal ul { padding-left: 20px; }
+.legal li { margin: 6px 0; }
+.legal-date { color: var(--cc-text-faint); font-size: 13px; margin: 0 0 20px; }
+.legal-back { color: var(--cc-text-muted); text-decoration: none; font-size: 14px; }
+.legal-back:hover { color: var(--cc-text); }

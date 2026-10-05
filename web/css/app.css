@@ -608,3 +608,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 
 /* Press-and-hold drag on touch: no iOS link preview or text callout while holding a row. */
 [data-store] > .cc-row, .cc-group-head { -webkit-touch-callout: none; }
+
+.cc-landing-foot { display: flex; gap: 18px; justify-content: center; margin-top: 48px; font-size: 13px; }
+.cc-landing-foot a { color: var(--cc-text-faint); text-decoration: none; }
+.cc-landing-foot a:hover { color: var(--cc-text); text-decoration: underline; }

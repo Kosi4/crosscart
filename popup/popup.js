@@ -160,8 +160,7 @@
       renderCurrentView();
     });
 
-    // TODO: swap for the real deployed origin at launch (see handoff §7, Phase 6).
-    els.openWebBtn.href = 'http://localhost:55983/web/#/carts';
+    els.openWebBtn.href = `${C.WEB_APP_URL}#/carts`;
     els.clearAllBtn.addEventListener('click', handleClearAll);
 
     els.newListBtn.addEventListener('click', handleCreateList);

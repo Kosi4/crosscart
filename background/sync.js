@@ -3,7 +3,7 @@
 // signed in; chrome.storage is the offline cache the popup and content scripts read).
 
 self.window = self; // shared/*.js attach their APIs to window.Crosscart
-importScripts('/shared/constants.js', '/shared/storage.js');
+importScripts('/shared/constants.js', '/shared/storage.js', '/shared/config.js');
 
 const { STORAGE_KEYS, storage } = self.Crosscart;
 
@@ -11,7 +11,6 @@ const SUPABASE_URL = 'https://yrfengptboswesicdmhe.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_PYdC8UYjLq5OAdcwnafyTg_sNiszXl1';
 const SYNC_ALARM = 'crosscart-sync';
 const LOCAL_CHANGE_DEBOUNCE_MS = 1500;
-const LINK_ORIGINS = ['http://localhost'];
 const ZERO_DECIMAL = new Set(['JPY']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -520,8 +519,8 @@ async function signOut() {
 function fromAllowedPage(sender) {
   if (sender.id !== chrome.runtime.id || !sender.url) return false;
   try {
-    const { protocol, hostname } = new URL(sender.url);
-    return LINK_ORIGINS.includes(`${protocol}//${hostname}`);
+    // Only the web app (shared/config.js) may link or sign out the extension.
+    return new URL(sender.url).origin === self.Crosscart.WEB_ORIGIN;
   } catch (e) {
     return false;
   }

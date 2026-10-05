@@ -97,6 +97,32 @@ window.Crosscart = window.Crosscart || {};
     return next;
   }
 
+  // The shopper picks a variant in the web cart. If that variant already has its own
+  // line, the two merge (quantities add): the server allows one line per product + variant.
+  // Groups with a single option fill themselves; it's confirmed once every group is set.
+  function setItemVariant(lists, listName, itemId, group, value) {
+    const items = lists[listName] || [];
+    const item = items.find((i) => i.id === itemId);
+    if (!item) return lists;
+
+    const options = item.variantOptions || {};
+    const selected = { ...(item.variantSelected || {}), [group]: value };
+    Object.entries(options).forEach(([name, values]) => {
+      if (!selected[name] && values.length === 1) selected[name] = values[0];
+    });
+    const complete = Object.keys(options).every((name) => selected[name]);
+    const updated = { ...item, variantSelected: selected, variantConfidence: complete ? 'high' : 'low' };
+
+    const key = productKey(updated);
+    const twin = items.find((i) => i.id !== itemId && productKey(i) === key);
+    const next = twin
+      ? items
+          .filter((i) => i.id !== itemId)
+          .map((i) => (i === twin ? { ...i, quantity: (i.quantity || 1) + (item.quantity || 1) } : i))
+      : items.map((i) => (i.id === itemId ? updated : i));
+    return { ...lists, [listName]: next };
+  }
+
   function updateItemQuantity(lists, listName, itemId, quantity) {
     const items = (lists[listName] || []).map((item) =>
       item.id === itemId ? { ...item, quantity: Math.max(1, quantity) } : item
@@ -119,6 +145,7 @@ window.Crosscart = window.Crosscart || {};
     deleteItem,
     moveItem,
     updateItemQuantity,
+    setItemVariant,
     clearAll,
   };
 })();

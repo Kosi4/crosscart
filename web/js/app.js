@@ -433,6 +433,9 @@
       const qty = Math.max(1, Number(el.value) || 1);
       commitCarts(listsApi.updateItemQuantity(state.carts, state.activeCart, el.dataset.arg, qty));
     },
+    variant: (el) => {
+      commitCarts(listsApi.setItemVariant(state.carts, state.activeCart, el.dataset.arg, el.dataset.group, el.value));
+    },
   };
 
   root.addEventListener('click', (event) => {
@@ -844,16 +847,32 @@
             const PLACEHOLDER_VARIANT_VALUE = /^(photo color|default|one (size|color)|n\/a|standard|regular)$/i;
             const variant = item.variantSelected || {};
             const options = item.variantOptions || {};
+            // Groups with a real choice get a dropdown; fixed values stay as text.
+            const choosable = Object.keys(options).filter((k) => (options[k] || []).length > 1);
             const variantText = Object.entries(variant)
-              .filter(([k, v]) => v && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
+              .filter(([k, v]) => v && !choosable.includes(k) && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
               .map(([k, v]) => `${k}: ${v}`)
               .join(' · ');
-            const unconfirmed = variantText && item.variantConfidence === 'low';
+            const unconfirmed = item.variantConfidence === 'low' && (variantText || choosable.length);
+            const pickers = choosable
+              .map((group) => {
+                const current = variant[group] || '';
+                const opts = options[group]
+                  .map((v) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(v)}</option>`)
+                  .join('');
+                return `<label class="cc-variant-pick${unconfirmed ? ' cc-variant-pick-unsure' : ''}">
+                  <span>${esc(group)}</span>
+                  <select data-change="variant" data-arg="${esc(item.id)}" data-group="${esc(group)}" aria-label="${esc(group)} for ${esc(item.title)}">
+                    ${current ? '' : `<option value="" selected disabled>Choose</option>`}${opts}
+                  </select>
+                </label>`;
+              })
+              .join('');
             const body = `
                 ${img ? `<img class="cc-thumb" src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" draggable="false" />` : '<div class="cc-thumb"></div>'}
                 <div class="cc-grow">
                   <div class="cc-ellipsis cc-item-title">${esc(item.title)}</div>
-                  ${variantText ? `<div class="cc-item-variant">${esc(variantText)}${unconfirmed ? ' · <span class="cc-item-variant-unsure">confirm on site</span>' : ''}</div>` : ''}
+                  ${variantText || unconfirmed ? `<div class="cc-item-variant">${esc(variantText)}${unconfirmed ? `${variantText ? ' · ' : ''}<span class="cc-item-variant-unsure">${pickers ? 'confirm your choice' : 'confirm on site'}</span>` : ''}</div>` : ''}
                   ${flag ? `<div class="cc-flag">${flag}</div>` : ''}
                 </div>`;
             return `
@@ -864,6 +883,7 @@
                   ? `<a class="cc-item-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" draggable="false" title="Open product page">${body}</a>`
                   : `<div class="cc-item-link">${body}</div>`
               }
+              ${pickers ? `<div class="cc-variant-picks">${pickers}</div>` : ''}
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}</div>
               <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}">Remove</button>

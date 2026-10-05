@@ -424,6 +424,20 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   background: var(--cc-surface);
 }
 
+.cc-variant-picks { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 240px; }
+.cc-variant-pick { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--cc-text-faint); }
+.cc-variant-pick select {
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius-pill);
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--cc-text);
+  background: var(--cc-surface);
+  max-width: 140px;
+  cursor: pointer;
+}
+.cc-variant-pick-unsure select { border-color: var(--cc-warn); }
+
 .cc-price { font-weight: 700; width: 86px; text-align: right; }
 
 .cc-remove {

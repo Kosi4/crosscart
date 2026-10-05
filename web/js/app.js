@@ -923,7 +923,9 @@
               ? 'Out of stock at this store'
               : check.wasPrice
                 ? `Price rose from ${fmt(currencyRates.convertAmount(check.wasPrice, item.currency || 'USD', 'USD', state.rates))} since you saved it`
-                : '';
+                : !(Number(item.price) > 0)
+                  ? "Price couldn't be read — check it on the store's page"
+                  : '';
             const img = imageSrc(item.image);
             const href = safeUrl(item.url);
             // Stores sometimes label a swatch "Photo Color"/"Default"/"One Size" when there

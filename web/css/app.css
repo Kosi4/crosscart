@@ -596,3 +596,10 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 .cc-btn-danger:hover { filter: brightness(1.08); }
 .cc-link-danger { background: none; border: none; color: var(--cc-text-faint); font-size: 12px; cursor: pointer; padding: 2px 0; }
 .cc-link-danger:hover { color: var(--cc-danger); text-decoration: underline; }
+/* Touch screens can't drag rows, so they get ▲▼ buttons instead. */
+.cc-move { display: none; }
+@media (pointer: coarse) {
+  .cc-move { display: flex; flex-direction: column; gap: 2px; }
+  .cc-move button { width: 32px; height: 22px; border: 1px solid var(--cc-border); border-radius: 8px; background: var(--cc-surface); color: var(--cc-text-muted); font-size: 10px; line-height: 1; cursor: pointer; }
+  .cc-move button:disabled { opacity: 0.35; cursor: default; }
+}

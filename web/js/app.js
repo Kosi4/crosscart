@@ -442,6 +442,14 @@
       render();
     },
 
+    // Touch screens can't drag: the ▲▼ buttons move a product one place within its store.
+    moveRow: (step, el) => {
+      const row = el.closest('.cc-row');
+      const from = Number(row.dataset.index);
+      focusRowId = row.dataset.id;
+      moveInStore(row.parentElement.dataset.store, from, from + Number(step));
+    },
+
     removeItem: (id) => {
       const list = state.activeCart;
       commitCarts((lists) => listsApi.deleteItem(lists, list, id));
@@ -527,7 +535,7 @@
     const el = event.target.closest('[data-action]');
     if (!el || !root.contains(el)) return;
     const action = actions[el.dataset.action];
-    if (action) action(el.dataset.arg);
+    if (action) action(el.dataset.arg, el);
   });
 
   root.addEventListener('change', (event) => {
@@ -988,6 +996,10 @@
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}</div>
               <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}">Remove</button>
+              <div class="cc-move">
+                <button data-action="moveRow" data-arg="-1" aria-label="Move ${esc(item.title)} up" ${index === 0 ? 'disabled' : ''}>▲</button>
+                <button data-action="moveRow" data-arg="1" aria-label="Move ${esc(item.title)} down" ${index === group.items.length - 1 ? 'disabled' : ''}>▼</button>
+              </div>
             </div>`;
           })
           .join('');

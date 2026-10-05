@@ -127,7 +127,16 @@
     items.forEach((item, index) => {
       if (api.storeKey(item.domain) === domain) next[index] = reordered[i++];
     });
-    commitCarts({ ...state.carts, [state.activeCart]: next });
+    reorderCart(next);
+  }
+
+  // A reorder is the order of item ids; applied to the latest copy of the list, so items
+  // added or edited elsewhere since this page loaded survive it.
+  function reorderCart(ordered) {
+    const rank = new Map(ordered.map((item, n) => [item.id, n]));
+    const pos = (item) => (rank.has(item.id) ? rank.get(item.id) : Infinity);
+    const list = state.activeCart;
+    commitCarts((lists) => ({ ...lists, [list]: [...(lists[list] || [])].sort((a, b) => pos(a) - pos(b)) }));
   }
 
   // ---------- data ----------
@@ -182,12 +191,18 @@
     state.rates = stale ? (await currencyRates.fetchExchangeRates()).rates : cached.rates;
   }
 
-  async function commitCarts(next) {
-    state.carts = next;
+  // `op` takes lists and returns the changed lists. It runs on this page's copy for an instant
+  // render, then again on the latest lists from storage before saving: writing this page's
+  // copy back wholesale would undo anything another tab or a sync changed since it loaded.
+  async function commitCarts(op) {
+    state.carts = op(state.carts);
     render();
     if (state.mode !== 'real') return;
     try {
+      const { lists } = await listsApi.loadLists();
+      state.carts = op(lists);
       await listsApi.persistLists(state.carts, state.activeCart);
+      render();
     } catch (e) {
       state.extension = false;
       render();
@@ -386,7 +401,10 @@
       render();
     },
 
-    removeItem: (id) => commitCarts(listsApi.deleteItem(state.carts, state.activeCart, id)),
+    removeItem: (id) => {
+      const list = state.activeCart;
+      commitCarts((lists) => listsApi.deleteItem(lists, list, id));
+    },
 
     placeOrders: () => {
       const totals = checkoutTotals();
@@ -431,10 +449,14 @@
     },
     quantity: (el) => {
       const qty = Math.max(1, Number(el.value) || 1);
-      commitCarts(listsApi.updateItemQuantity(state.carts, state.activeCart, el.dataset.arg, qty));
+      const list = state.activeCart;
+      commitCarts((lists) => listsApi.updateItemQuantity(lists, list, el.dataset.arg, qty));
     },
     variant: (el) => {
-      commitCarts(listsApi.setItemVariant(state.carts, state.activeCart, el.dataset.arg, el.dataset.group, el.value));
+      const list = state.activeCart;
+      const { arg, group } = el.dataset;
+      const value = el.value;
+      commitCarts((lists) => listsApi.setItemVariant(lists, list, arg, group, value));
     },
   };
 
@@ -469,7 +491,7 @@
     if (from === to || to < 0 || to >= groups.length) return;
     const [moved] = groups.splice(from, 1);
     groups.splice(to, 0, moved);
-    commitCarts({ ...state.carts, [state.activeCart]: groups.flatMap((g) => g.items) });
+    reorderCart(groups.flatMap((g) => g.items));
   }
 
   function moveInStore(domain, from, to) {
@@ -847,11 +869,17 @@
             const PLACEHOLDER_VARIANT_VALUE = /^(photo color|default|one (size|color)|n\/a|standard|regular)$/i;
             const variant = item.variantSelected || {};
             const options = item.variantOptions || {};
+            // "size" from a store's slug, or "Option 1" when a store never names its sizes.
+            const SIZE_VALUE = /^(x{0,3}s|m|x{0,3}l|\d?x{1,3}l?|one size|\d{1,2}(\.5)?(\/\d{2})?)$/i;
+            const groupLabel = (g) =>
+              /^option \d+$/i.test(g) && (options[g] || []).every((v) => SIZE_VALUE.test(v))
+                ? 'Size'
+                : g.charAt(0).toUpperCase() + g.slice(1);
             // Groups with a real choice get a dropdown; fixed values stay as text.
             const choosable = Object.keys(options).filter((k) => (options[k] || []).length > 1);
             const variantText = Object.entries(variant)
               .filter(([k, v]) => v && !choosable.includes(k) && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
-              .map(([k, v]) => `${k}: ${v}`)
+              .map(([k, v]) => `${groupLabel(k)}: ${v}`)
               .join(' · ');
             const unconfirmed = item.variantConfidence === 'low' && (variantText || choosable.length);
             const pickers = choosable
@@ -861,8 +889,8 @@
                   .map((v) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(v)}</option>`)
                   .join('');
                 return `<label class="cc-variant-pick${unconfirmed ? ' cc-variant-pick-unsure' : ''}">
-                  <span>${esc(group)}</span>
-                  <select data-change="variant" data-arg="${esc(item.id)}" data-group="${esc(group)}" aria-label="${esc(group)} for ${esc(item.title)}">
+                  <span>${esc(groupLabel(group))}</span>
+                  <select data-change="variant" data-arg="${esc(item.id)}" data-group="${esc(group)}" aria-label="${esc(groupLabel(group))} for ${esc(item.title)}">
                     ${current ? '' : `<option value="" selected disabled>Choose</option>`}${opts}
                   </select>
                 </label>`;
@@ -895,7 +923,7 @@
           <button class="cc-group-head" data-action="toggleGroup" data-arg="${esc(group.domain)}" aria-expanded="${open}" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" title="Click to collapse · drag to reorder stores">
             <div class="cc-grow">
               <div class="cc-group-store">${esc(store.name)}</div>
-              <div class="cc-group-domain">${esc(group.domain)}</div>
+              ${store.name.toLowerCase() === group.domain.toLowerCase() ? '' : `<div class="cc-group-domain">${esc(group.domain)}</div>`}
             </div>
             <div style="font-weight:700">${fmt(goodsUsd(group.items.filter(isSelected)))}</div>
             <div class="cc-caret">${open ? '▾' : '▸'}</div>

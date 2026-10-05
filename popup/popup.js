@@ -8,6 +8,7 @@
     preferredCurrency: 'USD',
     rates: currencyRates.FALLBACK_RATES,
     viewMode: 'dashboard',
+    deleteMode: false,
   };
 
   const els = {};
@@ -16,14 +17,10 @@
     els.currencySelect = document.getElementById('currency-select');
     els.openWebBtn = document.getElementById('open-web-btn');
     els.clearAllBtn = document.getElementById('clear-all-btn');
-    els.listSelect = document.getElementById('list-select');
+    els.listTitle = document.getElementById('list-title');
+    els.listNameInput = document.getElementById('list-name-input');
     els.newListBtn = document.getElementById('new-list-btn');
-    els.renameListBtn = document.getElementById('rename-list-btn');
     els.deleteListBtn = document.getElementById('delete-list-btn');
-    els.newListForm = document.getElementById('new-list-form');
-    els.newListInput = document.getElementById('new-list-input');
-    els.newListConfirm = document.getElementById('new-list-confirm');
-    els.newListCancel = document.getElementById('new-list-cancel');
     els.backBtn = document.getElementById('back-btn');
     els.cartList = document.getElementById('cart-list');
     els.footer = document.getElementById('footer-summary');
@@ -35,26 +32,40 @@
     ).join('');
   }
 
-  function populateListSelector() {
-    const names = Object.keys(state.lists);
-    els.listSelect.innerHTML = names
-      .map((n) => `<option value="${n}" ${n === state.activeList ? 'selected' : ''}>${n}</option>`)
-      .join('');
+  // The bar shows "Carts" on the dashboard and the editable cart name inside one,
+  // so the title doubles as the rename field and needs no separate button.
+  function renderListBar() {
+    const inList = state.viewMode === 'list';
+    els.backBtn.hidden = !inList;
+    els.listTitle.hidden = inList;
+    els.listNameInput.hidden = !inList;
+    if (inList && document.activeElement !== els.listNameInput) {
+      els.listNameInput.value = state.activeList;
+    }
+    els.deleteListBtn.title = inList ? 'Delete this cart' : 'Delete a cart';
+    els.deleteListBtn.setAttribute('aria-label', els.deleteListBtn.title);
+    els.deleteListBtn.setAttribute('aria-pressed', String(!inList && state.deleteMode));
   }
 
   function renderCurrentView() {
+    renderListBar();
     if (state.viewMode === 'dashboard') {
-      els.backBtn.style.display = 'none';
-      render.renderDashboard(els.cartList, state.lists, state.preferredCurrency, state.rates, (name) => {
-        state.activeList = name;
-        state.viewMode = 'list';
-        populateListSelector();
-        renderCurrentView();
-      });
+      render.renderDashboard(
+        els.cartList,
+        state.lists,
+        state.preferredCurrency,
+        state.rates,
+        (name) => {
+          state.activeList = name;
+          state.viewMode = 'list';
+          state.deleteMode = false;
+          renderCurrentView();
+        },
+        { deleteMode: state.deleteMode, onDeleteList: handleDeleteList }
+      );
       const allItems = Object.values(state.lists).flat();
       render.updateFooter(els.footer, allItems, state.preferredCurrency, state.rates);
     } else {
-      els.backBtn.style.display = '';
       const items = state.lists[state.activeList] || [];
       render.renderItems(els.cartList, items, state.activeList, state.preferredCurrency, state.rates, {
         onDelete: handleDeleteItem,
@@ -65,57 +76,80 @@
     }
   }
 
-  async function persist() {
+  // Apply `op` to the latest lists in storage, not this popup's copy: the web app or a
+  // sync may have changed them since the popup opened, and saving a stale copy undoes that.
+  async function update(op) {
+    const { lists } = await listsApi.loadLists();
+    state.lists = op(lists);
     await listsApi.persistLists(state.lists, state.activeList);
   }
 
   async function handleDeleteItem(itemId) {
-    state.lists = listsApi.deleteItem(state.lists, state.activeList, itemId);
-    await persist();
+    const list = state.activeList;
+    await update((lists) => listsApi.deleteItem(lists, list, itemId));
     renderCurrentView();
   }
 
   async function handleQuantityChange(itemId, qty) {
-    state.lists = listsApi.updateItemQuantity(state.lists, state.activeList, itemId, qty);
-    await persist();
+    const list = state.activeList;
+    await update((lists) => listsApi.updateItemQuantity(lists, list, itemId, qty));
     renderCurrentView();
   }
 
   async function handleReorder(reordered) {
-    state.lists = { ...state.lists, [state.activeList]: reordered };
-    await persist();
+    const list = state.activeList;
+    const rank = new Map(reordered.map((item, n) => [item.id, n]));
+    const pos = (item) => (rank.has(item.id) ? rank.get(item.id) : Infinity);
+    await update((lists) => ({ ...lists, [list]: [...(lists[list] || [])].sort((a, b) => pos(a) - pos(b)) }));
     renderCurrentView();
   }
 
-  async function handleCreateList(name) {
-    state.lists = listsApi.createList(state.lists, name);
+  // A new cart is created with a placeholder name and opened with the name selected,
+  // so naming it is just typing — there is no separate create form.
+  async function handleCreateList() {
+    let n = 0;
+    let name;
+    do {
+      name = `Cart ${++n}`;
+    } while (state.lists[name]);
     state.activeList = name;
-    await persist();
-    populateListSelector();
+    state.viewMode = 'list';
+    state.deleteMode = false;
+    await update((lists) => listsApi.createList(lists, name));
+    renderCurrentView();
+    els.listNameInput.focus();
+    els.listNameInput.select();
   }
 
-  async function handleDeleteList() {
-    state.lists = listsApi.deleteList(state.lists, state.activeList);
-    state.activeList = Object.keys(state.lists)[0];
-    await persist();
-    populateListSelector();
-    state.viewMode = 'dashboard';
+  async function handleDeleteList(name) {
+    const list = name || state.activeList;
+    await update((lists) => {
+      const next = listsApi.deleteList(lists, list);
+      if (!next[state.activeList]) state.activeList = Object.keys(next)[0];
+      return next;
+    });
+    if (!name) {
+      state.viewMode = 'dashboard';
+      state.deleteMode = false;
+    }
     renderCurrentView();
   }
 
-  async function handleRenameList() {
-    const newName = prompt('Rename list to:', state.activeList);
-    if (!newName) return;
-    state.lists = listsApi.renameList(state.lists, state.activeList, newName);
-    state.activeList = newName;
-    await persist();
-    populateListSelector();
+  async function handleRenameList(newName) {
+    const name = newName.trim();
+    const list = state.activeList;
+    if (!name || name === list || state.lists[name]) {
+      renderListBar();
+      return;
+    }
+    state.activeList = name;
+    await update((lists) => listsApi.renameList(lists, list, name));
     renderCurrentView();
   }
 
   async function handleClearAll() {
-    state.lists = listsApi.clearAll(state.lists, state.activeList);
-    await persist();
+    const list = state.activeList;
+    await update((lists) => listsApi.clearAll(lists, list));
     renderCurrentView();
   }
 
@@ -130,36 +164,45 @@
     els.openWebBtn.href = 'http://localhost:55983/web/#/carts';
     els.clearAllBtn.addEventListener('click', handleClearAll);
 
-    els.listSelect.addEventListener('change', () => {
-      state.activeList = els.listSelect.value;
-      state.viewMode = 'list';
+    els.newListBtn.addEventListener('click', handleCreateList);
+
+    // On the dashboard the minus arms delete mode (a minus then appears on each cart);
+    // inside a cart it deletes the cart you are looking at.
+    // Deleting the open cart takes a second tap within 3 seconds: one stray tap mustn't lose a cart.
+    let armTimer = null;
+    els.deleteListBtn.addEventListener('click', () => {
+      if (state.viewMode === 'list') {
+        if (els.deleteListBtn.dataset.armed) {
+          clearTimeout(armTimer);
+          delete els.deleteListBtn.dataset.armed;
+          handleDeleteList();
+          return;
+        }
+        els.deleteListBtn.dataset.armed = 'true';
+        els.deleteListBtn.title = 'Tap again to delete this cart';
+        els.deleteListBtn.setAttribute('aria-label', els.deleteListBtn.title);
+        armTimer = setTimeout(() => {
+          delete els.deleteListBtn.dataset.armed;
+          renderListBar();
+        }, 3000);
+        return;
+      }
+      state.deleteMode = !state.deleteMode;
       renderCurrentView();
     });
 
-    els.newListBtn.addEventListener('click', () => {
-      els.newListForm.style.display = '';
-      els.newListInput.value = '';
-      els.newListInput.focus();
+    els.listNameInput.addEventListener('change', () => handleRenameList(els.listNameInput.value));
+    els.listNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') els.listNameInput.blur();
+      if (e.key === 'Escape') {
+        els.listNameInput.value = state.activeList;
+        els.listNameInput.blur();
+      }
     });
-
-    els.newListCancel.addEventListener('click', () => {
-      els.newListForm.style.display = 'none';
-    });
-
-    els.newListConfirm.addEventListener('click', async () => {
-      const name = els.newListInput.value.trim();
-      if (!name) return;
-      await handleCreateList(name);
-      els.newListForm.style.display = 'none';
-      state.viewMode = 'list';
-      renderCurrentView();
-    });
-
-    els.renameListBtn.addEventListener('click', handleRenameList);
-    els.deleteListBtn.addEventListener('click', handleDeleteList);
 
     els.backBtn.addEventListener('click', () => {
       state.viewMode = 'dashboard';
+      state.deleteMode = false;
       renderCurrentView();
     });
 
@@ -188,7 +231,6 @@
     state.rates = isStale ? (await currencyRates.fetchExchangeRates()).rates : cached.rates;
 
     populateCurrencySelect();
-    populateListSelector();
     wireEvents();
     renderCurrentView();
   }

@@ -1,5 +1,19 @@
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/InstrumentSans-Bold.woff2") format("woff2");
+}
+
 * {
   box-sizing: border-box;
+}
+
+/* The list bar toggles its controls with `hidden`; the display rules below
+   would otherwise win over the browser default. */
+[hidden] {
+  display: none !important;
 }
 
 html {
@@ -11,8 +25,8 @@ html {
 body {
   width: 380px;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-  font-size: 13.5px;
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-base);
   line-height: 1.4;
   color: var(--cc-text);
   background: var(--cc-bg);
@@ -60,7 +74,7 @@ input:focus-visible {
   border: none;
   border-radius: var(--cc-radius-pill);
   padding: 7px 16px;
-  font-size: 12.5px;
+  font-size: var(--cc-font-control);
   font-weight: 600;
   cursor: pointer;
   backdrop-filter: blur(16px) saturate(180%);
@@ -106,13 +120,13 @@ input:focus-visible {
   background: linear-gradient(180deg, var(--cc-glass-fill-top), var(--cc-glass-fill-bottom));
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid var(--cc-glass-border);
 }
 
 .crosscart-brand {
+  font-family: var(--cc-font-display);
   font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.01em;
+  font-size: var(--cc-font-xl);
+  letter-spacing: var(--cc-tracking-display);
   flex: 1;
   color: var(--cc-text);
   text-decoration: none;
@@ -123,8 +137,8 @@ input:focus-visible {
 }
 
 .crosscart-brand-icon {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--cc-radius-sm);
 }
 
@@ -137,7 +151,7 @@ input:focus-visible {
   background: var(--cc-surface);
   border-radius: var(--cc-radius-pill);
   padding: 6px 12px;
-  font-size: 12.5px;
+  font-size: var(--cc-font-control);
 }
 
 /* List bar */
@@ -145,46 +159,110 @@ input:focus-visible {
 .crosscart-list-bar {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-1);
+  gap: var(--cc-space-2);
   padding: var(--cc-space-2) var(--cc-space-4);
   background: linear-gradient(180deg, var(--cc-glass-fill-top), var(--cc-glass-fill-bottom));
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid var(--cc-glass-border);
-  flex-wrap: wrap;
 }
 
-.crosscart-list-bar select {
+/* Dashboard: a plain label. Inside a cart: an input you can type the new name into. */
+.crosscart-list-title,
+.crosscart-list-name {
   flex: 1;
-  border: 1px solid var(--cc-border);
-  background: var(--cc-surface);
-  border-radius: var(--cc-radius-pill);
-  padding: 7px 12px;
-  font-weight: 600;
-  font-size: 13px;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--cc-font-base);
+  font-weight: 700;
+  color: var(--cc-text);
+  padding: 4px var(--cc-space-2);
 }
 
-.crosscart-new-list-form {
+.crosscart-list-title {
+  font-family: var(--cc-font-display);
+  letter-spacing: var(--cc-tracking-display);
+}
+
+.crosscart-list-name {
+  border: 1px solid transparent;
+  border-radius: var(--cc-radius-pill);
+  background: none;
+  cursor: text;
+  text-overflow: ellipsis;
+}
+
+.crosscart-list-name:hover {
+  border-color: var(--cc-border);
+}
+
+.crosscart-list-name:focus {
+  border-color: var(--cc-border-strong);
+  background: var(--cc-surface);
+}
+
+.crosscart-icon-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
   display: flex;
-  gap: var(--cc-space-1);
-  padding: var(--cc-space-2) var(--cc-space-4);
-  background: linear-gradient(180deg, var(--cc-glass-fill-top), var(--cc-glass-fill-bottom));
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid var(--cc-glass-border);
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--cc-border);
+  border-radius: var(--cc-radius-pill);
+  background: none;
+  color: var(--cc-text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.12s ease, color 0.12s ease, transform 0.08s ease;
 }
 
-.crosscart-new-list-form input {
-  flex: 1;
-  border: 1px solid var(--cc-border-strong);
+.crosscart-icon-btn:hover {
+  border-color: var(--cc-border-strong);
+  color: var(--cc-text);
+}
+
+.crosscart-icon-btn:active {
+  transform: scale(0.92);
+}
+
+.crosscart-icon-btn-danger:hover,
+.crosscart-icon-btn-danger[aria-pressed="true"],
+.crosscart-icon-btn-danger[data-armed] {
+  border-color: var(--cc-danger);
+  color: var(--cc-danger);
+}
+
+/* The per-card delete button, shown only while delete mode is on. */
+.crosscart-card-delete {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--cc-danger);
   border-radius: var(--cc-radius-pill);
-  padding: 7px 14px;
-  background: var(--cc-surface);
+  background: none;
+  color: var(--cc-danger);
+  font-size: var(--cc-font-lg);
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.crosscart-card-delete:hover {
+  background: var(--cc-danger-soft);
 }
 
 /* Cart list area */
 
 .crosscart-cart-list {
+  background: var(--cc-glass-fill-bottom);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   max-height: 380px;
   overflow-y: auto;
   padding: var(--cc-space-3) var(--cc-space-4);
@@ -197,12 +275,15 @@ input:focus-visible {
   text-align: center;
   color: var(--cc-text-faint);
   padding: 40px 0;
-  font-size: 13px;
+  font-size: var(--cc-font-md);
 }
 
 /* Dashboard list cards */
 
 .crosscart-list-card {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
   padding: var(--cc-space-3) var(--cc-space-4);
   border-radius: var(--cc-radius-md);
   background: var(--cc-surface);
@@ -220,15 +301,23 @@ input:focus-visible {
   transform: scale(0.99);
 }
 
+.crosscart-list-card-body {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
 .crosscart-list-card-name {
+  font-family: var(--cc-font-display);
   font-weight: 700;
-  font-size: 14px;
+  font-size: var(--cc-font-lg);
+  letter-spacing: var(--cc-tracking-display);
   color: var(--cc-text);
 }
 
 .crosscart-list-card-meta {
   color: var(--cc-text-muted);
-  font-size: 12px;
+  font-size: var(--cc-font-sm);
   margin-top: 2px;
 }
 
@@ -292,7 +381,7 @@ a.crosscart-item-link:hover .crosscart-item-title {
 
 .crosscart-item-title {
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text);
   white-space: nowrap;
   overflow: hidden;
@@ -300,7 +389,7 @@ a.crosscart-item-link:hover .crosscart-item-title {
 }
 
 .crosscart-item-domain {
-  font-size: 10.5px;
+  font-size: var(--cc-font-xs);
   color: var(--cc-text-faint);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -309,7 +398,7 @@ a.crosscart-item-link:hover .crosscart-item-title {
 
 .crosscart-item-price {
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text);
   margin-top: 4px;
 }
@@ -327,7 +416,7 @@ a.crosscart-item-link:hover .crosscart-item-title {
   border: 1px solid var(--cc-border);
   border-radius: var(--cc-radius-pill);
   padding: 3px 6px;
-  font-size: 12px;
+  font-size: var(--cc-font-sm);
   text-align: center;
   background: var(--cc-surface);
 }
@@ -352,14 +441,16 @@ a.crosscart-item-link:hover .crosscart-item-title {
 
 .crosscart-footer {
   padding: var(--cc-space-3) var(--cc-space-4);
-  border-top: 1px solid var(--cc-glass-border);
-  background: linear-gradient(180deg, var(--cc-glass-fill-top), var(--cc-glass-fill-bottom));
+  background: var(--cc-glass-fill-bottom);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   font-weight: 700;
-  font-size: 13px;
+  font-size: var(--cc-font-md);
   text-align: right;
   color: var(--cc-text);
   border-bottom-left-radius: var(--cc-radius-lg);
   border-bottom-right-radius: var(--cc-radius-lg);
 }
+
+/* Armed: the next tap deletes the open cart. */
+.crosscart-icon-btn-danger[data-armed] { background: var(--cc-danger); color: #fff; }

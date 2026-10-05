@@ -17,17 +17,11 @@
   </header>
 
   <div class="crosscart-list-bar">
-    <button id="back-btn" class="crosscart-btn-secondary">&larr; Back</button>
-    <select id="list-select"></select>
-    <button id="new-list-btn" class="crosscart-btn-secondary">New</button>
-    <button id="rename-list-btn" class="crosscart-btn-secondary">Rename</button>
-    <button id="delete-list-btn" class="crosscart-btn-secondary">Delete</button>
-  </div>
-
-  <div id="new-list-form" class="crosscart-new-list-form" style="display: none;">
-    <input id="new-list-input" type="text" placeholder="List name" />
-    <button id="new-list-confirm" class="crosscart-btn-primary">Create</button>
-    <button id="new-list-cancel" class="crosscart-btn-secondary">Cancel</button>
+    <button id="back-btn" class="crosscart-icon-btn" title="Back to all carts" aria-label="Back to all carts">&larr;</button>
+    <div id="list-title" class="crosscart-list-title">Carts</div>
+    <input id="list-name-input" class="crosscart-list-name" type="text" aria-label="Cart name, edit to rename" />
+    <button id="new-list-btn" class="crosscart-icon-btn" title="New cart" aria-label="New cart">+</button>
+    <button id="delete-list-btn" class="crosscart-icon-btn crosscart-icon-btn-danger" aria-label="Delete a cart">&minus;</button>
   </div>
 
   <main id="cart-list" class="crosscart-cart-list"></main>

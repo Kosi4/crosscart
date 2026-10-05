@@ -1,5 +1,6 @@
 (function () {
   const C = window.Crosscart;
+  C.monitor.install('web');
   const { STORAGE_KEYS, SUPPORTED_CURRENCIES, storage, lists: listsApi, currencyRates, theme, api, pricing } = C;
   const esc = C.dom.escapeHtml;
   const { safeUrl } = C.dom;

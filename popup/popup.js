@@ -1,5 +1,6 @@
 (function () {
   const C = window.Crosscart;
+  C.monitor.install('popup');
   const { STORAGE_KEYS, SUPPORTED_CURRENCIES, storage, lists: listsApi, render, dnd, currencyRates } = C;
 
   const state = {

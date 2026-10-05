@@ -3,7 +3,8 @@
 // signed in; chrome.storage is the offline cache the popup and content scripts read).
 
 self.window = self; // shared/*.js attach their APIs to window.Crosscart
-importScripts('/shared/constants.js', '/shared/storage.js', '/shared/config.js');
+importScripts('/shared/constants.js', '/shared/storage.js', '/shared/config.js', '/shared/monitor.js');
+self.Crosscart.monitor.install('background');
 
 const { STORAGE_KEYS, storage } = self.Crosscart;
 

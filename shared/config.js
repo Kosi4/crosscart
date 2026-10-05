@@ -7,3 +7,7 @@ window.Crosscart.DEV_WEB_ORIGIN = 'http://localhost:55983';
 window.Crosscart.PROD_WEB_ORIGIN = 'https://DOMAIN-NOT-SET.invalid'; // set when the domain is bought
 window.Crosscart.WEB_ORIGIN = window.Crosscart.DEV_WEB_ORIGIN;
 window.Crosscart.WEB_APP_URL = `${window.Crosscart.WEB_ORIGIN}/web/`;
+
+// Error monitoring: reports go to our Supabase function `report-error`, which forwards them to
+// Sentry (project "crosscart", EU region). Ad-blockers block sentry.io directly.
+window.Crosscart.ERROR_REPORT_URL = 'https://yrfengptboswesicdmhe.supabase.co/functions/v1/report-error';

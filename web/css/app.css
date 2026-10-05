@@ -571,6 +571,23 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   .cc-total-pill { left: 16px; bottom: 16px; }
   .cc-checkout-all { right: 16px; bottom: 16px; }
   .cc-steps, .cc-grid-2, .cc-two-col, .cc-two-col.cc-wide-side { grid-template-columns: 1fr; }
+  /* Phones: the nav bar keeps Sign out and the theme toggle; only the account card hides. */
+  .cc-side { flex-wrap: wrap; overflow: visible; gap: 8px 12px; }
+  .cc-sidefoot { display: flex; flex-direction: row; width: 100%; gap: 8px; }
+  .cc-sidefoot .cc-btn { flex: 1; }
+  .cc-side-brand span { display: none; } /* logo alone, so the links fit on one line */
+  .cc-topbar .cc-btn { white-space: nowrap; padding: 8px 14px; }
+  .cc-topbar [data-action="toggleTheme"] { display: none; } /* still in the app menu */
+  .cc-sidefoot .cc-saved-card { display: none; }
+  .cc-sidefoot .cc-btn { white-space: nowrap; }
+  .cc-main { padding: 20px 16px 96px; }
+  /* Cart rows: photo and name on the first line, choices + quantity + price + Remove below. */
+  .cc-row { flex-wrap: wrap; gap: 10px; padding: 14px 16px; }
+  .cc-row > .cc-item-link { flex: 1 1 calc(100% - 40px); min-width: 0; }
+  .cc-row > .cc-remove { padding: 4px 0 4px 4px; }
+  .cc-row > .cc-variant-picks { margin-left: 27px; justify-content: flex-start; max-width: none; }
+  .cc-row > .cc-item-link + .cc-qty { margin-left: 27px; }
+  .cc-row > .cc-price { margin-left: auto; width: auto; }
 }
 
 .cc-waitlist-done { font-size: 13px; line-height: 1.45; padding: 12px 14px; border-radius: var(--cc-radius-md); background: var(--cc-surface); border: 1px solid var(--cc-border); margin: 14px 0 8px; text-wrap: pretty; }

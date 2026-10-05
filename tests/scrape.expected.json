@@ -1,0 +1,124 @@
+{
+  "cottonon": {
+    "isProduct": true,
+    "title": "Authentics Oversized Zip Thru Hoodie",
+    "price": "549.00",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": []
+  },
+  "frclothing": {
+    "isProduct": true,
+    "title": "Carhartt - FR Duck Bib Overall Unlined - Black",
+    "price": "169.99",
+    "currency": "USD",
+    "image": "photo",
+    "options": []
+  },
+  "kittedsa": {
+    "isProduct": true,
+    "title": "Manchester United 07/08 Ronaldo Black Long Sleeve",
+    "price": "1850.00",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": [
+      "Option 1"
+    ]
+  },
+  "kyw": {
+    "isProduct": true,
+    "title": "Pink KYW Rugby Tshirt",
+    "price": "85.00",
+    "currency": "USD",
+    "image": "photo",
+    "options": [
+      "Option 1"
+    ]
+  },
+  "valeclothing": {
+    "isProduct": true,
+    "title": "Vale Forever Rhinestone Plaid Flannel",
+    "price": "99.00",
+    "currency": "USD",
+    "image": "photo",
+    "options": [
+      "size"
+    ]
+  },
+  "righteous": {
+    "isProduct": true,
+    "title": "Risen King Zip Up Sky Blue",
+    "price": "120.00",
+    "currency": "USD",
+    "image": "photo",
+    "options": [
+      "Size"
+    ]
+  },
+  "amazon": {
+    "isProduct": true,
+    "title": "Dolce & Gabbana Light Blue Pour Homme, Eau De Toilette Spray, For Men - 40 ml / 1.3 fl.oz",
+    "price": "899.00",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": []
+  },
+  "spaceboy": {
+    "isProduct": true,
+    "title": "Spaceboy University Hoodie",
+    "price": "115.00",
+    "currency": "USD",
+    "image": "photo",
+    "options": [
+      "Option 1"
+    ]
+  },
+  "supermade": {
+    "isProduct": true,
+    "title": "SP260924P7NV Graphic Streetwear Zip-Up Jacket",
+    "price": "1472.00",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": [
+      "Color",
+      "Size"
+    ]
+  },
+  "youngla": {
+    "isProduct": true,
+    "title": "2127 - Big Patch Sweats",
+    "price": "60",
+    "currency": "USD",
+    "image": "photo",
+    "options": [
+      "Color"
+    ]
+  },
+  "osmanlioud": {
+    "isProduct": true,
+    "title": "Blue Motion Eau de Perfume 85 ML",
+    "price": "1850.00",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": []
+  },
+  "jdsports": {
+    "isProduct": true,
+    "title": "Jordan Men's Flight Short Sleeve White T-Shirt",
+    "price": "699.95",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": []
+  },
+  "samsung": {
+    "isProduct": true,
+    "title": "Galaxy S26 Ultra",
+    "price": "30999",
+    "currency": "ZAR",
+    "image": "photo",
+    "options": [
+      "Colour",
+      "Storage"
+    ]
+  }
+}

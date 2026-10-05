@@ -170,7 +170,9 @@ window.Crosscart = window.Crosscart || {};
   function brandName(brand) {
     const b = Array.isArray(brand) ? brand[0] : brand;
     if (!b) return '';
-    return String(typeof b === 'object' ? b.name || '' : b).trim();
+    const name = String(typeof b === 'object' ? b.name || '' : b).trim();
+    // Shopify's placeholder for a store that never set its name (KYW) isn't a brand.
+    return /^my store$/i.test(name) ? '' : name;
   }
 
   function scrapeJsonLd() {

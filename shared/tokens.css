@@ -14,7 +14,7 @@
 
   --cc-text: #18181b;
   --cc-text-muted: #52525b;
-  --cc-text-faint: #a1a1aa;
+  --cc-text-faint: #71717a;
 
   --cc-glass-fill-top: rgba(255, 255, 255, 0.65);
   --cc-glass-fill-bottom: rgba(255, 255, 255, 0.28);
@@ -40,6 +40,17 @@
   --cc-shadow-md: 0 4px 16px rgba(24, 24, 27, 0.08);
   --cc-shadow-lg: 0 12px 32px rgba(24, 24, 27, 0.16);
 
+  --cc-font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  --cc-font-display: "Instrument Sans", var(--cc-font-sans);
+  --cc-tracking-display: -0.045em;
+  --cc-font-xs: 10.5px;
+  --cc-font-sm: 12px;
+  --cc-font-control: 12.5px;
+  --cc-font-md: 13px;
+  --cc-font-base: 13.5px;
+  --cc-font-lg: 14px;
+  --cc-font-xl: 17px;
+
   color-scheme: light;
 }
 
@@ -59,7 +70,7 @@
 
   --cc-text: #fafafa;
   --cc-text-muted: #a1a1aa;
-  --cc-text-faint: #71717a;
+  --cc-text-faint: #939399;
 
   --cc-glass-fill-top: rgba(255, 255, 255, 0.16);
   --cc-glass-fill-bottom: rgba(255, 255, 255, 0.05);

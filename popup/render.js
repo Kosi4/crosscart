@@ -12,20 +12,34 @@ window.Crosscart = window.Crosscart || {};
     }));
   }
 
-  function renderDashboard(container, lists, preferredCurrency, rates, onSelectList) {
+  function renderDashboard(container, lists, preferredCurrency, rates, onSelectList, options) {
     const { formatMoney } = window.Crosscart;
+    const { deleteMode = false, onDeleteList } = options || {};
     const totals = grandTotals(lists, preferredCurrency, rates);
     container.innerHTML = totals
       .map(
         (t) => `
       <div class="crosscart-list-card" data-list="${escapeHtml(t.name)}">
-        <div class="crosscart-list-card-name">${escapeHtml(t.name)}</div>
-        <div class="crosscart-list-card-meta">${t.count} item(s) &middot; ${formatMoney(t.total, preferredCurrency)}</div>
+        <div class="crosscart-list-card-body">
+          <div class="crosscart-list-card-name">${escapeHtml(t.name)}</div>
+          <div class="crosscart-list-card-meta">${t.count} item(s) &middot; ${formatMoney(t.total, preferredCurrency)}</div>
+        </div>
+        ${
+          deleteMode
+            ? `<button class="crosscart-card-delete" data-delete-list="${escapeHtml(t.name)}" title="Delete ${escapeHtml(t.name)}" aria-label="Delete ${escapeHtml(t.name)}">&minus;</button>`
+            : ''
+        }
       </div>`
       )
       .join('');
-    container.querySelectorAll('.crosscart-list-card').forEach((card) => {
-      card.addEventListener('click', () => onSelectList(card.dataset.list));
+    container.querySelectorAll('.crosscart-list-card-body').forEach((body) => {
+      body.addEventListener('click', () => onSelectList(body.parentElement.dataset.list));
+    });
+    container.querySelectorAll('[data-delete-list]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (onDeleteList) onDeleteList(btn.dataset.deleteList);
+      });
     });
   }
 

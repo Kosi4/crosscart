@@ -1,0 +1,10 @@
+{
+  "about": "AggregateOffer lowPrice is used; site-name suffix is stripped",
+  "url": "https://www.samsung.com/za/audio/galaxy-buds/",
+  "isProductPage": true,
+  "expect": {
+    "title": "Galaxy Buds",
+    "price": "1499.95",
+    "currency": "ZAR"
+  }
+}

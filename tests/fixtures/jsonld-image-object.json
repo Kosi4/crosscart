@@ -1,0 +1,11 @@
+{
+  "about": "ImageObject array resolves to a URL, not [object Object]; real ' - ' suffix survives",
+  "url": "https://wearerighteous.com.co/product/denim-jacket/",
+  "isProductPage": true,
+  "expect": {
+    "title": "Denim Jacket - Black Wash",
+    "image": "https://wearerighteous.com.co/img/denim-front.jpg",
+    "price": "89.00",
+    "currency": "USD"
+  }
+}

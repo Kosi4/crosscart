@@ -1,0 +1,11 @@
+{
+  "name": "crosscart",
+  "private": true,
+  "description": "Dev tooling only. The extension itself has no dependencies and no build step.",
+  "scripts": {
+    "test": "for f in tests/*.check.js; do node \"$f\" || exit 1; done"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

@@ -323,7 +323,11 @@ window.Crosscart = window.Crosscart || {};
     return match ? match[0] : '';
   }
 
-  const PRICE_PATTERN = /(?:\$|€|£|¥|₹|R|USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\s*[\d.,\s ]*\d/i;
+  // Symbol before the amount ("R 985.00", "$120"), or after it the way most of
+  // Europe writes it ("1.234,56 €"). Only € and ISO codes count as a trailing
+  // marker; a bare trailing "R" or "$" would match things like "Size 10 Regular".
+  const PRICE_PATTERN =
+    /(?:\$|€|£|¥|₹|R|USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\s*[\d.,\s ]*\d|\d[\d.,\s ]*?\s*(?:€|(?:USD|EUR|GBP|ZAR|JPY|CAD|AUD|INR)\b)/i;
 
   function findPriceIn(scope) {
     // itemprop=price is authoritative when present, and often a clean number.

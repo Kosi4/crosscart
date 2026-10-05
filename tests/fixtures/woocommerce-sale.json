@@ -1,0 +1,11 @@
+{
+  "about": "sale price wins over the struck-through price, nav widget and related items",
+  "url": "https://wearerighteous.com.co/product/black-risen-king-hoodie/",
+  "isProductPage": true,
+  "expect": {
+    "title": "Black Risen King Hoodie",
+    "price": "120.00",
+    "currency": "USD",
+    "image": "https://wearerighteous.com.co/img/risen-king.jpg"
+  }
+}

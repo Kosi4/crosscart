@@ -1,0 +1,9 @@
+{
+  "about": "no structured data; '1.234,56 €' parses as 1234.56, not 1.23",
+  "url": "https://winkel.example.nl/p/leren-tas",
+  "expect": {
+    "title": "Leren tas",
+    "price": "1234.56",
+    "currency": "EUR"
+  }
+}

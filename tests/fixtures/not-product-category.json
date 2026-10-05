@@ -1,0 +1,6 @@
+{
+  "about": "category grid with several Add to cart buttons is not one product",
+  "url": "https://example-store.com/collections/hoodies",
+  "isProductPage": false,
+  "todo": "hasProductDomSignals() says yes to any page with one 'Add to cart' button, so listing pages get the save button"
+}

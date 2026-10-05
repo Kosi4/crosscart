@@ -36,6 +36,10 @@ Titles also get a site name stripped off (`"Hoodie | Some Store"` → `"Hoodie"`
 
 Number formats aren't universal (`$1,499.95` vs `R1 499,95` vs `1.234,56 €`), and a sale page usually has both the current price and a struck-through original on screen at once. The parser normalizes formats by locating the actual decimal separator rather than assuming one, and prefers `<ins>`/sale-marked elements over `del`/compare-at ones so a discounted item resolves to what you'd actually pay, not the original list price.
 
+## Tests
+
+`tests/*.check.js` are plain Node scripts. The scraper one runs against saved product pages in `tests/fixtures/` and needs jsdom, so run `npm install` once, then `npm test` runs them all. See [tests/README.md](tests/README.md) for how to add a page when a store scrapes wrong.
+
 ## Structure
 
 Plain JavaScript, Manifest V3, no build step, no dependencies. Content scripts don't reliably support `type="module"`, so instead of a bundler, each file attaches to a shared `window.Crosscart` namespace and the manifest loads them in dependency order.

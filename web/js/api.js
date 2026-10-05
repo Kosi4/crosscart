@@ -101,6 +101,25 @@ window.Crosscart = window.Crosscart || {};
     return !error && data && data.plan === 'plus' ? 'plus' : 'free';
   }
 
+  // Waitlist for paid checkout: one row per user (the table enforces it), insert-only.
+  async function isOnWaitlist() {
+    const session = await getSession();
+    if (!session) return false;
+    const { data, error } = await supabase.from('waitlist').select('id').eq('user_id', session.user.id).maybeSingle();
+    return !error && Boolean(data);
+  }
+
+  async function joinWaitlist({ itemCount, valueMinor, currency, domains }) {
+    const { error } = await supabase.from('waitlist').insert({
+      cart_item_count: itemCount,
+      cart_value_minor: valueMinor,
+      cart_currency: currency,
+      store_domains: domains,
+    });
+    // 23505 = already on the list (unique user_id), which is what the shopper wanted anyway.
+    if (error && error.code !== '23505') throw error;
+  }
+
   // OAuth appends ?code= to the redirect, which would land inside our #/ route, so redirect to the bare page.
   async function signInWithGoogle() {
     // signInWithOAuth navigates away immediately; check the provider is enabled first so a
@@ -200,6 +219,8 @@ window.Crosscart = window.Crosscart || {};
     supabase,
     getSession,
     getPlan,
+    isOnWaitlist,
+    joinWaitlist,
     signInWithGoogle,
     sendEmailSignIn,
     verifyEmailCode,

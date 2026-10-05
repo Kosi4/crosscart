@@ -437,6 +437,16 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   cursor: pointer;
 }
 .cc-variant-pick-unsure select { border-color: var(--cc-warn); }
+.cc-variant-free input {
+  border: 1px dashed var(--cc-border);
+  border-radius: var(--cc-radius-pill);
+  padding: 5px 10px;
+  font-size: 13px;
+  color: var(--cc-text);
+  background: transparent;
+  width: 72px;
+}
+.cc-variant-free input:focus { border-style: solid; outline: none; border-color: var(--cc-text-faint); }
 
 .cc-price { font-weight: 700; width: 86px; text-align: right; }
 
@@ -555,3 +565,5 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   .cc-checkout-all { right: 16px; bottom: 16px; }
   .cc-steps, .cc-grid-2, .cc-two-col, .cc-two-col.cc-wide-side { grid-template-columns: 1fr; }
 }
+
+.cc-waitlist-done { font-size: 13px; line-height: 1.45; padding: 12px 14px; border-radius: var(--cc-radius-md); background: var(--cc-surface); border: 1px solid var(--cc-border); margin: 14px 0 8px; text-wrap: pretty; }

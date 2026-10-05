@@ -100,6 +100,7 @@ window.Crosscart = window.Crosscart || {};
   // The shopper picks a variant in the web cart. If that variant already has its own
   // line, the two merge (quantities add): the server allows one line per product + variant.
   // Groups with a single option fill themselves; it's confirmed once every group is set.
+  // A store that gave no options at all lets the shopper type one (group "Size").
   function setItemVariant(lists, listName, itemId, group, value) {
     const items = lists[listName] || [];
     const item = items.find((i) => i.id === itemId);
@@ -107,6 +108,7 @@ window.Crosscart = window.Crosscart || {};
 
     const options = item.variantOptions || {};
     const selected = { ...(item.variantSelected || {}), [group]: value };
+    if (!value) delete selected[group]; // a typed size cleared back to nothing
     Object.entries(options).forEach(([name, values]) => {
       if (!selected[name] && values.length === 1) selected[name] = values[0];
     });

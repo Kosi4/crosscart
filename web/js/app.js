@@ -15,6 +15,9 @@
     screen: 'landing',
     mode: null,
     plan: 'free',
+    waitlisted: false,
+    waitlistBusy: false,
+    waitlistError: '',
     feeOpen: false,
     loadedMode: null,
     extension: null,
@@ -180,6 +183,7 @@
     }
 
     state.plan = await api.getPlan();
+    state.waitlisted = await api.isOnWaitlist();
     const { lists, activeList } = await listsApi.loadLists();
     state.carts = lists;
     state.activeCart = state.activeCart && lists[state.activeCart] ? state.activeCart : activeList;
@@ -231,6 +235,8 @@
       // A signed-in user reloading should land on their own carts, not a demo left over from earlier.
       if (!state.mode) state.mode = state.session ? 'real' : sessionGet(MODE_KEY);
       if (!state.mode || (state.mode === 'real' && !state.session)) return go('signin');
+      // Real accounts can't pay yet (checkout is a waitlist), so they have no orders to show.
+      if (state.mode === 'real' && ['placing', 'confirm', 'orders'].includes(screen)) return go('carts');
       if ((screen === 'placing' || screen === 'confirm') && !state.order) return go('orders');
     }
 
@@ -239,7 +245,7 @@
 
     if (APP_SCREENS.includes(screen)) {
       await loadData();
-      const hasItems = state.checkoutAll ? Object.values(state.carts).flat().length : state.carts[state.activeCart];
+      const hasItems = state.checkoutAll ? Object.values(state.carts).flat().length : (state.carts[state.activeCart] || []).length;
       if (screen === 'cart' && !state.carts[state.activeCart]) return go('carts');
       if (screen === 'checkout' && !hasItems) return go('carts');
       render();
@@ -406,6 +412,26 @@
       commitCarts((lists) => listsApi.deleteItem(lists, list, id));
     },
 
+    joinWaitlist: async () => {
+      const totals = checkoutTotals();
+      state.waitlistBusy = true;
+      state.waitlistError = '';
+      render();
+      try {
+        await api.joinWaitlist({
+          itemCount: totals.chosen.length,
+          valueMinor: Math.round(totals.total * 100),
+          currency: 'USD',
+          domains: totals.groups.map((g) => g.domain),
+        });
+        state.waitlisted = true;
+      } catch (e) {
+        state.waitlistError = "Couldn't join just now. Check your connection and try again.";
+      }
+      state.waitlistBusy = false;
+      render();
+    },
+
     placeOrders: () => {
       const totals = checkoutTotals();
       if (!totals.groups.length) return;
@@ -455,7 +481,7 @@
     variant: (el) => {
       const list = state.activeCart;
       const { arg, group } = el.dataset;
-      const value = el.value;
+      const value = el.value.trim();
       commitCarts((lists) => listsApi.setItemVariant(lists, list, arg, group, value));
     },
   };
@@ -685,7 +711,7 @@
     const steps = [
       ['01 — Save', 'Add from any store', 'The extension puts an add button on product pages and reads the title, price and image off the page.'],
       ['02 — Compare', 'One running total', 'Everything converted into the currency you think in, across as many named lists as you want.'],
-      ['03 — Pay once', 'We check out for you', 'You pay CrossCart once. We pay each store with a single-use card, then report back per store.'],
+      ['03 — Pay once', 'Checkout for you, coming soon', 'Soon you\'ll pay CrossCart once and we\'ll buy from each store for you. Join the waitlist from your cart.'],
     ];
     return `
       <div class="cc-landing">
@@ -697,9 +723,9 @@
         </div>
 
         <div class="cc-hero">
-          <div class="cc-pill-label">Chrome extension + web checkout</div>
+          <div class="cc-pill-label">Chrome extension + web app</div>
           <h1>Your cart, wherever you shop</h1>
-          <p>Save products from any online store into one cart. When you're ready, CrossCart checks out on every store for you — you pay once, here.</p>
+          <p>Save products from any online store into one cart, with one running total. Soon, CrossCart will check out on every store for you, so you pay once.</p>
           <div class="cc-hero-actions">
             <button class="cc-btn cc-btn-lg cc-btn-primary" data-action="goSignIn">Open my cart</button>
             <button class="cc-btn cc-btn-lg cc-btn-glass" data-action="demo">See a demo cart</button>
@@ -798,7 +824,7 @@
       ${open ? `<div class="cc-fee-parts" id="cc-fee-parts">${parts.map(([l, v]) => row(l, v)).join('')}</div>` : ''}`;
 
     const upsell =
-      q.plan !== 'plus' && q.perStore
+      state.mode !== 'real' && q.plan !== 'plus' && q.perStore
         ? `<div class="cc-faint" style="font-size:12px;margin-top:10px;text-wrap:pretty">CrossCart Plus skips store fees: ${fmt(q.perStore)} off this order, ${fmt(PRICING.PLUS_MONTHLY_USD)}/month.</div>`
         : '';
     return `<div class="cc-summary-rows">${row(`Items (${totals.chosen.length})`, fmt(totals.goods))}${row(
@@ -842,7 +868,7 @@
       : '';
     const checkoutAllButton =
       Object.values(state.carts).filter((items) => items.length).length > 1
-        ? `<button class="cc-btn cc-btn-primary cc-checkout-all" data-action="checkoutAll">Check out all carts · ${plural(allItems.length, 'item')}</button>`
+        ? `<button class="cc-btn cc-btn-primary cc-checkout-all" data-action="checkoutAll">${state.mode === 'real' ? 'Estimate all carts' : 'Check out all carts'} · ${plural(allItems.length, 'item')}</button>`
         : '';
 
     return `${notice}<div class="cc-grid-2">${cards}</div>${totalPill}${checkoutAllButton}`;
@@ -876,9 +902,10 @@
                 ? 'Size'
                 : g.charAt(0).toUpperCase() + g.slice(1);
             // Groups with a real choice get a dropdown; fixed values stay as text.
+            const noOptions = !Object.keys(options).length;
             const choosable = Object.keys(options).filter((k) => (options[k] || []).length > 1);
             const variantText = Object.entries(variant)
-              .filter(([k, v]) => v && !choosable.includes(k) && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
+              .filter(([k, v]) => v && !choosable.includes(k) && !(noOptions && k === 'Size') && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
               .map(([k, v]) => `${groupLabel(k)}: ${v}`)
               .join(' · ');
             const unconfirmed = item.variantConfidence === 'low' && (variantText || choosable.length);
@@ -896,6 +923,13 @@
                 </label>`;
               })
               .join('');
+            // No list from the store (Cotton On has no product data): the shopper can type a size.
+            const freeSize = noOptions
+              ? `<label class="cc-variant-pick cc-variant-free">
+                  <span>Size</span>
+                  <input type="text" maxlength="20" placeholder="Add" value="${esc(variant.Size || '')}" data-change="variant" data-arg="${esc(item.id)}" data-group="Size" aria-label="Size for ${esc(item.title)}" />
+                </label>`
+              : '';
             const body = `
                 ${img ? `<img class="cc-thumb" src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" draggable="false" />` : '<div class="cc-thumb"></div>'}
                 <div class="cc-grow">
@@ -911,7 +945,7 @@
                   ? `<a class="cc-item-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" draggable="false" title="Open product page">${body}</a>`
                   : `<div class="cc-item-link">${body}</div>`
               }
-              ${pickers ? `<div class="cc-variant-picks">${pickers}</div>` : ''}
+              ${pickers || freeSize ? `<div class="cc-variant-picks">${pickers || freeSize}</div>` : ''}
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}</div>
               <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}">Remove</button>
@@ -940,8 +974,8 @@
           <div class="cc-summary-title">Summary</div>
           ${summaryRows(totals)}
           <div class="cc-summary-total"><div class="cc-grow">Total</div><div>${fmt(totals.total)}</div></div>
-          <button class="cc-btn cc-btn-block cc-btn-primary" data-action="goCheckout" ${totals.chosen.length ? '' : 'disabled'}>Check out ${totals.chosen.length} items</button>
-          <div class="cc-note">Orders are placed store by store. Unselected items stay in the list.</div>
+          <button class="cc-btn cc-btn-block cc-btn-primary" data-action="goCheckout" ${totals.chosen.length ? '' : 'disabled'}>${state.mode === 'real' ? 'See the estimate' : 'Check out'} · ${plural(totals.chosen.length, 'item')}</button>
+          <div class="cc-note">${state.mode === 'real' ? 'Buy from each store using the item links.' : 'Orders are placed store by store.'} Unselected items stay in the list.</div>
         </div>
       </div>`;
   }
@@ -997,11 +1031,9 @@
           <div class="cc-card cc-panel">
             <div class="cc-panel-title">Pay with</div>
             <div class="cc-form">
-              ${field('card', 'Card number', true, 'cc-number')}
-              ${field('exp', 'MM / YY', false, 'cc-exp')}
-              ${field('cvc', 'CVC', false, 'cc-csc')}
+              <input class="cc-span-2" value="Visa •••• 4412 (demo card)" disabled aria-label="Demo card" />
             </div>
-            <div class="cc-panel-note">CrossCart charges this card once, then pays each store on your behalf.</div>
+            <div class="cc-panel-note">This is a demo: no card is needed and nothing is charged. When it's live, CrossCart charges your card once, then pays each store for you.</div>
           </div>
 
           <div class="cc-card cc-panel">
@@ -1023,6 +1055,52 @@
           ${summaryRows(totals)}
           <div class="cc-summary-total cc-big"><div class="cc-grow">Total</div><div>${fmt(totals.total)}</div></div>
           <button class="cc-btn cc-btn-block cc-btn-lg cc-btn-primary" data-action="placeOrders" ${totals.groups.length ? '' : 'disabled'}>Place ${totals.groups.length} orders</button>
+          <button class="cc-btn cc-btn-block cc-btn-plain" data-action="goCart">${state.checkoutAll ? 'Back to carts' : 'Back to cart'}</button>
+        </div>
+      </div>`;
+  }
+
+  // Real accounts: paying stores for you isn't live yet, so checkout shows the estimate and a
+  // waitlist instead of a card form. Nothing here takes payment details.
+  function waitlistView(totals) {
+    const breakdown = totals.groups
+      .map((g) => {
+        const store = api.storeInfo(g.domain);
+        return `
+        <div class="cc-line">
+          <div class="cc-grow">
+            <div style="font-weight:600">${esc(store.name)}</div>
+            <div class="cc-line-meta">${plural(g.items.length, 'item')} · ${fmt(store.shipUsd)} estimated shipping</div>
+          </div>
+          <div style="font-weight:700">${fmt(goodsUsd(g.items) + store.shipUsd)}</div>
+        </div>`;
+      })
+      .join('');
+
+    const action = state.waitlisted
+      ? `<div class="cc-waitlist-done">You're on the list. We'll email you when one payment for every store is ready.</div>`
+      : `<button class="cc-btn cc-btn-block cc-btn-lg cc-btn-primary" data-action="joinWaitlist" ${state.waitlistBusy ? 'disabled' : ''}>${state.waitlistBusy ? 'Joining…' : 'Join the waitlist'}</button>
+         ${state.waitlistError ? `<div class="cc-flag">${esc(state.waitlistError)}</div>` : ''}`;
+
+    return `
+      <div class="cc-two-col cc-wide-side">
+        <div class="cc-stack">
+          <div class="cc-card cc-panel">
+            <div class="cc-panel-title">One payment for every store</div>
+            <div class="cc-panel-note" style="margin-top:8px">Soon you'll pay CrossCart once and we'll buy from each store for you. Until then, use the links in your carts to buy from each store directly. Join the waitlist to hear when it's ready.</div>
+          </div>
+          <div class="cc-card cc-panel">
+            <div class="cc-panel-title">What this would cost</div>
+            <div style="display:flex;flex-direction:column;margin-top:8px">${breakdown}</div>
+            <div class="cc-panel-note">Shipping is an estimate. No payment is taken.</div>
+          </div>
+        </div>
+
+        <div class="cc-summary cc-glass">
+          <div class="cc-summary-title">Estimate</div>
+          ${summaryRows(totals)}
+          <div class="cc-summary-total cc-big"><div class="cc-grow">Total</div><div>${fmt(totals.total)}</div></div>
+          ${action}
           <button class="cc-btn cc-btn-block cc-btn-plain" data-action="goCart">${state.checkoutAll ? 'Back to carts' : 'Back to cart'}</button>
         </div>
       </div>`;
@@ -1125,10 +1203,10 @@
     const titles = {
       carts: ['Your carts', `${itemCount} items saved across ${Object.keys(state.carts).length} lists`],
       cart: [state.activeCart || '', `${plural(totals.groups.length, 'store')} · ${plural(totals.chosen.length, 'item')} selected`],
-      checkout: [
-        state.checkoutAll ? 'Check out all carts' : 'Checkout',
-        `One payment, ${plural(totals.groups.length, 'store order')}`,
-      ],
+      checkout:
+        state.mode === 'real'
+          ? ['Pay once is coming', `One payment for ${plural(totals.groups.length, 'store')}, soon`]
+          : [state.checkoutAll ? 'Check out all carts' : 'Checkout', `One payment, ${plural(totals.groups.length, 'store order')}`],
       placing: ['Checkout', 'Placing orders'],
       confirm: ['Order placed', 'CrossCart paid each store on your behalf'],
       orders: ['Orders', 'Every store order CrossCart has placed for you'],
@@ -1138,7 +1216,7 @@
     const views = {
       carts: cartsView,
       cart: () => cartView(totals),
-      checkout: () => checkoutView(totals),
+      checkout: () => (state.mode === 'real' ? waitlistView(totals) : checkoutView(totals)),
       placing: placingView,
       confirm: confirmView,
       orders: ordersView,
@@ -1146,7 +1224,7 @@
 
     const nav = [
       ['carts', 'Carts', 'goCarts'],
-      ['orders', 'Orders', 'goOrders'],
+      ...(state.mode === 'real' ? [] : [['orders', 'Orders', 'goOrders']]),
       ['landing', 'About', 'goLanding'],
     ];
     // The saved card belongs to the demo's checkout preview; real accounts have no payments yet.

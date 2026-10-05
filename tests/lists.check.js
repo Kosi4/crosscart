@@ -29,4 +29,12 @@ assert.strictEqual(lists.Tops[0].quantity, 3);
 const same = { Tops: [shirt('a', 'S', 1)] };
 assert.strictEqual(setItemVariant(same, 'Tops', 'zzz', 'Size', 'M'), same);
 
+// A store with no size list: the shopper types one, which confirms it; clearing removes it.
+const plain = { id: 'p', url: 'https://shop.com/cap', quantity: 1, variantOptions: {}, variantSelected: {} };
+lists = setItemVariant({ Hats: [plain] }, 'Hats', 'p', 'Size', 'L');
+assert.deepStrictEqual({ ...lists.Hats[0].variantSelected }, { Size: 'L' });
+assert.strictEqual(lists.Hats[0].variantConfidence, 'high');
+lists = setItemVariant(lists, 'Hats', 'p', 'Size', '');
+assert.deepStrictEqual({ ...lists.Hats[0].variantSelected }, {});
+
 console.log('lists: ok');

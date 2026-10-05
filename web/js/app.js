@@ -16,6 +16,7 @@
     mode: null,
     plan: 'free',
     waitlisted: false,
+    saveBroken: false,
     waitlistBusy: false,
     waitlistError: '',
     feeOpen: false,
@@ -208,7 +209,7 @@
       await listsApi.persistLists(state.carts, state.activeCart);
       render();
     } catch (e) {
-      state.extension = false;
+      state.saveBroken = true;
       render();
     }
   }
@@ -411,6 +412,8 @@
       const list = state.activeCart;
       commitCarts((lists) => listsApi.deleteItem(lists, list, id));
     },
+
+    reloadPage: () => location.reload(),
 
     joinWaitlist: async () => {
       const totals = checkoutTotals();
@@ -1272,6 +1275,17 @@
               ${SUPPORTED_CURRENCIES.map((c) => `<option value="${c}" ${c === state.currency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
           </div>
+          ${
+            state.mode === 'real' && state.saveBroken
+              ? `<div class="cc-card cc-notice cc-notice-row" role="alert">
+                  <div class="cc-grow">
+                    <div style="font-weight:700;font-size:15px">CrossCart was updated</div>
+                    <div class="cc-muted" style="margin-top:4px">Reload this page so your changes keep saving.</div>
+                  </div>
+                  <button class="cc-btn cc-btn-md cc-btn-primary" data-action="reloadPage">Reload page</button>
+                </div>`
+              : ''
+          }
           ${views[state.screen]()}
         </main>
       </div>`;
@@ -1311,6 +1325,14 @@
     renderedTheme = theme.current();
     render();
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  // Guarded: a cached older storage-bridge.js has no onStale, and that must not blank the page.
+  if (storage.onStale) {
+    storage.onStale(() => {
+      state.saveBroken = true;
+      render();
+    });
+  }
 
   storage.subscribeToChanges((changed) => {
     if (state.mode !== 'real') return;

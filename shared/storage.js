@@ -1,23 +1,30 @@
 window.Crosscart = window.Crosscart || {};
 
 (function () {
-  function getStorage(keys) {
-    return new Promise((resolve) => {
-      chrome.storage.local.get(keys, resolve);
+  // Reloading the extension orphans content scripts already in open tabs: every chrome.* call
+  // then throws "Extension context invalidated". Callers get a rejection they can handle instead.
+  function alive() {
+    try {
+      return Boolean(chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function call(fn) {
+    return new Promise((resolve, reject) => {
+      if (!alive()) return reject(new Error('Extension context invalidated'));
+      try {
+        fn(resolve);
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 
-  function setStorage(data) {
-    return new Promise((resolve) => {
-      chrome.storage.local.set(data, resolve);
-    });
-  }
-
-  function removeStorage(keys) {
-    return new Promise((resolve) => {
-      chrome.storage.local.remove(keys, resolve);
-    });
-  }
+  const getStorage = (keys) => call((done) => chrome.storage.local.get(keys, done));
+  const setStorage = (data) => call((done) => chrome.storage.local.set(data, done));
+  const removeStorage = (keys) => call((done) => chrome.storage.local.remove(keys, done));
 
   function subscribeToChanges(callback) {
     const listener = (changes, area) => {
@@ -28,5 +35,5 @@ window.Crosscart = window.Crosscart || {};
     return () => chrome.storage.onChanged.removeListener(listener);
   }
 
-  window.Crosscart.storage = { getStorage, setStorage, removeStorage, subscribeToChanges };
+  window.Crosscart.storage = { getStorage, setStorage, removeStorage, subscribeToChanges, alive };
 })();

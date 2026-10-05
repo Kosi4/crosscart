@@ -25,17 +25,26 @@
     if (event.source !== window || event.origin !== location.origin) return;
     const msg = event.data;
     if (!msg || msg.source !== FROM_PAGE) return;
+    // This copy of the bridge belongs to an extension that has since been reloaded or removed.
+    if (!storage.alive()) return post({ type: 'stale' });
 
     if (msg.type === 'ping') {
       post({ type: 'ready' });
     } else if (msg.type === 'get') {
       const keys = (Array.isArray(msg.keys) ? msg.keys : []).filter((key) => ALLOWED.has(key));
-      const data = keys.length ? await storage.getStorage(keys) : {};
-      post({ type: 'result', id: msg.id, data });
+      try {
+        post({ type: 'result', id: msg.id, data: keys.length ? await storage.getStorage(keys) : {} });
+      } catch (e) {
+        post({ type: 'stale' });
+      }
     } else if (msg.type === 'set') {
       const data = allowedOnly(msg.data);
-      if (Object.keys(data).length) await storage.setStorage(data);
-      post({ type: 'result', id: msg.id, data: {} });
+      try {
+        if (Object.keys(data).length) await storage.setStorage(data);
+        post({ type: 'result', id: msg.id, data: {} });
+      } catch (e) {
+        post({ type: 'stale' });
+      }
     } else if (msg.type === 'extensionStatus' || msg.type === 'linkExtension' || msg.type === 'signOut') {
       // The service worker owns the extension's session; the page only ever sees the account id.
       const request =

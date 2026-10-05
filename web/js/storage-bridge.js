@@ -12,6 +12,8 @@ window.Crosscart = window.Crosscart || {};
   let nextId = 0;
   const pending = new Map();
   const listeners = new Set();
+  const staleListeners = new Set();
+  let stale = false;
   let markReady;
   const ready = new Promise((resolve) => (markReady = resolve));
 
@@ -23,8 +25,14 @@ window.Crosscart = window.Crosscart || {};
     if (msg.type === 'ready') {
       markReady();
     } else if (msg.type === 'result' && pending.has(msg.id)) {
-      pending.get(msg.id)(msg.data);
+      pending.get(msg.id).resolve(msg.data);
       pending.delete(msg.id);
+    } else if (msg.type === 'stale') {
+      // The extension was reloaded under this page: nothing will be saved until the page reloads.
+      stale = true;
+      pending.forEach(({ reject }) => reject(new Error('CrossCart extension was reloaded')));
+      pending.clear();
+      staleListeners.forEach((cb) => cb());
     } else if (msg.type === 'changed') {
       listeners.forEach((cb) => cb(msg.changes));
     }
@@ -44,9 +52,10 @@ window.Crosscart = window.Crosscart || {};
 
   async function request(msg, timeoutMs = TIMEOUT_MS) {
     if (!(await detected)) throw new Error('CrossCart extension not detected');
+    if (stale) throw new Error('CrossCart extension was reloaded');
     const id = ++nextId;
     return new Promise((resolve, reject) => {
-      pending.set(id, resolve);
+      pending.set(id, { resolve, reject });
       send({ ...msg, id });
       setTimeout(() => {
         if (pending.delete(id)) reject(new Error('CrossCart extension did not respond'));
@@ -65,6 +74,9 @@ window.Crosscart = window.Crosscart || {};
       return () => listeners.delete(callback);
     },
     isAvailable: () => detected,
+    onStale(callback) {
+      staleListeners.add(callback);
+    },
     extensionStatus: () => request({ type: 'extensionStatus' }, STATUS_TIMEOUT_MS),
     linkExtension: (tokenHash) => request({ type: 'linkExtension', tokenHash }, NETWORK_TIMEOUT_MS),
     signOutExtension: () => request({ type: 'signOut' }, NETWORK_TIMEOUT_MS),

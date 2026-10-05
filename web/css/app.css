@@ -1,3 +1,4 @@
+html { scrollbar-gutter: stable; } /* short and long carts keep the same column positions */
 * {
   box-sizing: border-box;
 }
@@ -238,7 +239,7 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cc-saved-card { padding: 14px; border-radius: var(--cc-radius-md); background: var(--cc-surface); border: 1px solid var(--cc-border); }
 .cc-saved-card .cc-eyebrow { letter-spacing: 0.05em; }
 
-.cc-main { padding: 26px 30px 60px; min-width: 0; }
+.cc-main { padding: 26px 30px 96px; min-width: 0; } /* room to scroll past the floating total + estimate bars */
 
 .cc-pagehead { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 22px; }
 .cc-pagetitle { font-size: 26px; font-weight: 700; letter-spacing: -0.025em; }
@@ -416,6 +417,8 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 
 .cc-qty {
   width: 54px;
+  height: 32px;
+  box-sizing: border-box;
   border: 1px solid var(--cc-border);
   border-radius: var(--cc-radius-pill);
   padding: 5px 8px;
@@ -427,6 +430,8 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 .cc-variant-picks { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 240px; }
 .cc-variant-pick { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--cc-text-faint); }
 .cc-variant-pick select {
+  height: 32px;
+  box-sizing: border-box;
   border: 1px solid var(--cc-border);
   border-radius: var(--cc-radius-pill);
   padding: 5px 10px;
@@ -438,6 +443,8 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 }
 .cc-variant-pick-unsure select { border-color: var(--cc-warn); }
 .cc-variant-free input {
+  height: 32px;
+  box-sizing: border-box;
   border: 1px dashed var(--cc-border);
   border-radius: var(--cc-radius-pill);
   padding: 5px 10px;
@@ -446,7 +453,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   background: transparent;
   width: 72px;
 }
-.cc-variant-free input:focus { border-style: solid; outline: none; border-color: var(--cc-text-faint); }
+.cc-variant-free input:focus { border-style: solid; border-color: var(--cc-text-faint); }
 
 .cc-price { font-weight: 700; width: 86px; text-align: right; }
 
@@ -567,3 +574,4 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 }
 
 .cc-waitlist-done { font-size: 13px; line-height: 1.45; padding: 12px 14px; border-radius: var(--cc-radius-md); background: var(--cc-surface); border: 1px solid var(--cc-border); margin: 14px 0 8px; text-wrap: pretty; }
+.cc-notice-row { display: flex; align-items: center; gap: 16px; }

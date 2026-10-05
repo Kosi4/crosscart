@@ -81,6 +81,7 @@ window.Crosscart = window.Crosscart || {};
       picker.appendChild(listWrap);
     }
 
+    await applyTheme(picker);
     document.documentElement.appendChild(picker);
     positionAboveAnchor(picker, anchorEl);
 
@@ -96,5 +97,18 @@ window.Crosscart = window.Crosscart || {};
     document.addEventListener('keydown', escHandler, true);
   }
 
-  window.Crosscart.picker = { showPicker, closePicker };
+  // The button and picker sit on the store's page, so the theme goes on them as a class,
+  // never on the page itself. Your CrossCart setting wins; otherwise follow the computer.
+  async function applyTheme(el) {
+    if (!el) return;
+    const { storage, STORAGE_KEYS } = window.Crosscart;
+    let theme = null;
+    try {
+      theme = (await storage.getStorage([STORAGE_KEYS.THEME]))[STORAGE_KEYS.THEME];
+    } catch (e) {}
+    const dark = theme ? theme === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    el.classList.toggle('crosscart-dark', dark);
+  }
+
+  window.Crosscart.picker = { showPicker, closePicker, applyTheme };
 })();

@@ -106,3 +106,28 @@
 #crosscart-picker .crosscart-picker-chip:hover {
   background: rgba(255, 255, 255, 0.8) !important;
 }
+
+/* Dark mode (class set from the CrossCart theme setting, not the store's page). Matches the
+   popup and web app: dark glass panel, light primary pill. */
+#crosscart-btn.crosscart-dark {
+  background: linear-gradient(180deg, rgba(244, 244, 245, 0.95), rgba(212, 212, 216, 0.92)) !important;
+  color: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+#crosscart-picker.crosscart-dark {
+  background: linear-gradient(180deg, rgba(39, 39, 42, 0.88), rgba(24, 24, 27, 0.82)) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+}
+#crosscart-picker.crosscart-dark .crosscart-picker-title { color: #fafafa !important; }
+#crosscart-picker.crosscart-dark .crosscart-picker-divider { color: #a1a1aa !important; }
+#crosscart-picker.crosscart-dark .crosscart-picker-default {
+  background: linear-gradient(180deg, rgba(244, 244, 245, 0.95), rgba(212, 212, 216, 0.92)) !important;
+  color: #18181b !important;
+}
+#crosscart-picker.crosscart-dark .crosscart-picker-chip {
+  color: #fafafa !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+#crosscart-picker.crosscart-dark .crosscart-picker-chip:hover { background: rgba(255, 255, 255, 0.16) !important; }

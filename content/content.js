@@ -9,6 +9,7 @@
     button.type = 'button';
     button.textContent = '+ Add to CrossCart';
     button.addEventListener('click', onAddClick);
+    window.Crosscart.picker.applyTheme(button);
     document.documentElement.appendChild(button);
     return button;
   }
@@ -57,6 +58,14 @@
 
   function init() {
     syncButtonForPage();
+    // Switching light/dark in the popup or web app updates the button right away.
+    try {
+      window.Crosscart.storage.subscribeToChanges((changes) => {
+        if (!changes[window.Crosscart.STORAGE_KEYS.THEME]) return;
+        window.Crosscart.picker.applyTheme(button);
+        window.Crosscart.picker.applyTheme(document.getElementById('crosscart-picker'));
+      });
+    } catch (e) {}
     window.Crosscart.watchSpaNavigation(syncButtonForPage);
   }
 

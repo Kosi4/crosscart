@@ -87,16 +87,6 @@ window.Crosscart = window.Crosscart || {};
     return { ...lists, [listName]: items };
   }
 
-  function moveItem(lists, fromList, toList, itemId) {
-    const source = lists[fromList] || [];
-    const item = source.find((i) => i.id === itemId);
-    if (!item) return lists;
-    const next = { ...lists };
-    next[fromList] = source.filter((i) => i.id !== itemId);
-    next[toList] = [...(lists[toList] || []), item];
-    return next;
-  }
-
   // The shopper picks a variant in the web cart. If that variant already has its own
   // line, the two merge (quantities add): the server allows one line per product + variant.
   // Groups with a single option fill themselves; it's confirmed once every group is set.
@@ -145,7 +135,6 @@ window.Crosscart = window.Crosscart || {};
     renameList,
     saveToList,
     deleteItem,
-    moveItem,
     updateItemQuantity,
     setItemVariant,
     clearAll,

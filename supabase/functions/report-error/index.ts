@@ -16,8 +16,20 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: corsHeaders });
 
-  const body = await req.text();
-  if (!body || body.length > MAX_BYTES) return new Response('Bad size', { status: 413, headers: corsHeaders });
+  const bytes = new Uint8Array(await req.arrayBuffer());
+  if (!bytes.length || bytes.length > MAX_BYTES) return new Response('Bad size', { status: 413, headers: corsHeaders });
+
+  // Only well-formed single-event envelopes: header line, {"type":"event"}, event JSON.
+  // ponytail: no per-IP rate limit; Sentry's own quota caps the damage. Add one if abused.
+  const body = new TextDecoder().decode(bytes);
+  const lines = body.split('\n');
+  try {
+    const item = JSON.parse(lines[1]);
+    const event = JSON.parse(lines[2]);
+    if (lines.length !== 3 || item.type !== 'event' || typeof event.event_id !== 'string') throw new Error();
+  } catch {
+    return new Response('Bad envelope', { status: 400, headers: corsHeaders });
+  }
 
   const res = await fetch(
     `https://${SENTRY_HOST}/api/${SENTRY_PROJECT}/envelope/?sentry_key=${SENTRY_KEY}&sentry_version=7`,

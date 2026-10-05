@@ -74,8 +74,8 @@ window.Crosscart = window.Crosscart || {};
               : `<div class="crosscart-item-link">${body}</div>`
           }
           <div class="crosscart-item-controls">
-            <input type="number" min="1" class="crosscart-qty" value="${item.quantity || 1}" data-id="${escapeHtml(item.id)}" />
-            <button class="crosscart-delete" data-id="${escapeHtml(item.id)}">Delete</button>
+            <input type="number" min="1" class="crosscart-qty" value="${item.quantity || 1}" data-id="${escapeHtml(item.id)}" aria-label="Quantity of ${escapeHtml(item.title)}" />
+            <button class="crosscart-delete" data-id="${escapeHtml(item.id)}" aria-label="Delete ${escapeHtml(item.title)}">Delete</button>
           </div>
         </div>`;
       })

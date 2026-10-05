@@ -1,0 +1,7 @@
+# Hosting serves only the web app and the files it loads; everything else stays off the site.
+/*
+!/web
+!/shared
+!/fonts
+!/icons
+!/vercel.json

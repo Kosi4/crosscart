@@ -470,7 +470,9 @@
       render();
     },
 
+    // Demo only: real accounts get the waitlist, and nothing is ever charged.
     placeOrders: () => {
+      if (state.mode !== 'demo') return;
       const totals = checkoutTotals();
       if (!totals.groups.length) return;
       const legs = totals.groups.map((g) => ({
@@ -868,7 +870,7 @@
           <div class="cc-signin-title">Sign in to CrossCart</div>
           <div class="cc-muted" style="margin-top:8px">Your saved lists follow you from the extension.</div>
           ${signInBody()}
-          <div class="cc-faint" style="font-size:12px;margin-top:22px;text-wrap:pretty">By continuing you let CrossCart place orders on stores on your behalf.</div>
+          <div class="cc-faint cc-signin-legal" style="font-size:12px;margin-top:22px;text-wrap:pretty">By continuing you agree to the <a href="terms.html">Terms</a> and <a href="privacy.html">Privacy policy</a>.</div>
         </div>
       </div>`;
   }
@@ -1035,7 +1037,7 @@
               ${pickers || freeSize ? `<div class="cc-variant-picks">${pickers || freeSize}</div>` : ''}
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}</div>
-              <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}">Remove</button>
+              <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}" aria-label="Remove ${esc(item.title)}">Remove</button>
             </div>`;
           })
           .join('');
@@ -1171,7 +1173,7 @@
       .join('');
 
     const action = state.waitlisted
-      ? `<div class="cc-waitlist-done">You're on the list. We'll email you when one payment for every store is ready.</div>`
+      ? `<div class="cc-waitlist-done">You're on the list. We'll let you know here when one payment for every store is ready.</div>`
       : `<button class="cc-btn cc-btn-block cc-btn-lg cc-btn-primary" data-action="joinWaitlist" ${state.waitlistBusy ? 'disabled' : ''}>${state.waitlistBusy ? 'Joining…' : 'Join the waitlist'}</button>
          ${state.waitlistError ? `<div class="cc-flag">${esc(state.waitlistError)}</div>` : ''}`;
 

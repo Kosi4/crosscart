@@ -49,6 +49,11 @@ for (const script of manifest.content_scripts) {
   }
 }
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+const bridge = manifest.content_scripts.find((c) => (c.js || []).some((f) => f.endsWith('web-bridge.js')));
+if (!bridge || !bridge.matches.includes(prodPattern)) {
+  console.error(`The web-app bridge didn't switch to ${prodPattern}; check manifest.json still uses ${devPattern}.`);
+  process.exit(1);
+}
 
 // Nothing shipped may still trust or point at the development server.
 const problems = [];

@@ -120,5 +120,15 @@
       "Colour",
       "Storage"
     ]
+  },
+  "stockx": {
+    "isProduct": true,
+    "title": "Puma LaMelo Ball LaFrancé Amour Black",
+    "price": "110",
+    "currency": "USD",
+    "image": "photo",
+    "options": [
+      "Size"
+    ]
   }
 }

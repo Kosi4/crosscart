@@ -1,11 +1,3 @@
-@font-face {
-  font-family: "Instrument Sans";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("../fonts/InstrumentSans-Bold.woff2") format("woff2");
-}
-
 * {
   box-sizing: border-box;
 }

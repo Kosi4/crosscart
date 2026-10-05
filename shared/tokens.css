@@ -1,3 +1,13 @@
+/* Instrument Sans Bold (OFL), self-hosted: extension pages can't load Google Fonts. The design
+   only uses it bold, for the brand, headlines and titles (--cc-font-display). */
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/InstrumentSans-Bold.woff2") format("woff2");
+}
+
 :root {
   --cc-accent: #52525b;
   --cc-accent-hover: #3f3f46;

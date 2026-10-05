@@ -442,14 +442,6 @@
       render();
     },
 
-    // Touch screens can't drag: the ▲▼ buttons move a product one place within its store.
-    moveRow: (step, el) => {
-      const row = el.closest('.cc-row');
-      const from = Number(row.dataset.index);
-      focusRowId = row.dataset.id;
-      moveInStore(row.parentElement.dataset.store, from, from + Number(step));
-    },
-
     removeItem: (id) => {
       const list = state.activeCart;
       commitCarts((lists) => listsApi.deleteItem(lists, list, id));
@@ -535,7 +527,7 @@
     const el = event.target.closest('[data-action]');
     if (!el || !root.contains(el)) return;
     const action = actions[el.dataset.action];
-    if (action) action(el.dataset.arg, el);
+    if (action) action(el.dataset.arg);
   });
 
   root.addEventListener('change', (event) => {
@@ -598,7 +590,8 @@
     const maxDy = last.top + last.height - (slots[from].top + slots[from].height);
     const y = Math.max(minDy, Math.min(maxDy, dy));
     const center = slots[from].top + slots[from].height / 2 + y;
-    const to = slots.filter((s, i) => i !== from && s.top + s.height / 2 < center).length;
+    // <=: the drag is capped where the moved row's centre meets the last row's, so the last slot needs equality.
+    const to = slots.filter((s, i) => i !== from && s.top + s.height / 2 <= center).length;
     const lift = slots[from].height + drag.gap;
 
     row.style.transform = `translateY(${y}px) scale(1.02)`;
@@ -652,29 +645,57 @@
     drag = null;
   }
 
-  // ponytail: mouse/pen only; touch reordering needs a long-press handle so it doesn't fight page scrolling
+  // Touch: a swipe must still scroll the page, so a finger drags only after a press-and-hold.
+  const HOLD_MS = 350;
+  const HOLD_SLOP_PX = 8;
+
   root.addEventListener('pointerdown', (event) => {
-    if (event.button !== 0 || event.pointerType === 'touch' || drag) return;
-    const base = { startY: event.clientY, pointerId: event.pointerId, active: false };
+    if (event.button !== 0 || drag) return;
+    const touch = event.pointerType === 'touch';
+    const base = { startY: event.clientY, pointerId: event.pointerId, active: false, touch };
     const row = event.target.closest('[data-store] > .cc-row');
     if (row) {
       if (event.target.closest('input, button, select, textarea')) return;
       const domain = row.parentElement.dataset.store;
       drag = { ...base, row, container: row.parentElement, itemSelector: ':scope > .cc-row', onDrop: (f, t) => moveInStore(domain, f, t) };
-      return;
     }
     // The store header is also the collapse toggle; a plain click still toggles, moving past the threshold drags.
     const head = event.target.closest('.cc-stack > .cc-group > .cc-group-head');
     if (head) {
       const group = head.parentElement;
-      drag = { ...base, row: group, container: group.parentElement, itemSelector: ':scope > .cc-group', onDrop: moveStore };
+      if (!row) drag = { ...base, row: group, container: group.parentElement, itemSelector: ':scope > .cc-group', onDrop: moveStore };
+    }
+    if (drag && touch) {
+      const held = drag;
+      held.holdTimer = setTimeout(() => {
+        if (drag !== held) return;
+        startDrag();
+        if (navigator.vibrate) navigator.vibrate(10);
+      }, HOLD_MS);
     }
   });
+
+  // Once a hold has lifted a row, finger movement drags it instead of scrolling the page.
+  window.addEventListener(
+    'touchmove',
+    (event) => {
+      if (drag && drag.touch && drag.active && event.cancelable) event.preventDefault();
+    },
+    { passive: false }
+  );
 
   window.addEventListener('pointermove', (event) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
     const dy = event.clientY - drag.startY;
     if (!drag.active) {
+      if (drag.touch) {
+        // Moved before the hold finished: that's a scroll, not a drag.
+        if (Math.abs(dy) > HOLD_SLOP_PX) {
+          clearTimeout(drag.holdTimer);
+          drag = null;
+        }
+        return;
+      }
       if (Math.abs(dy) < DRAG_THRESHOLD_PX) return;
       startDrag();
     }
@@ -684,11 +705,15 @@
 
   window.addEventListener('pointerup', (event) => {
     if (!drag || event.pointerId !== drag.pointerId) return;
+    clearTimeout(drag.holdTimer);
     if (drag.active) endDrag();
     drag = null;
   });
 
-  window.addEventListener('pointercancel', cancelDrag);
+  window.addEventListener('pointercancel', () => {
+    if (drag) clearTimeout(drag.holdTimer);
+    cancelDrag();
+  });
 
   root.addEventListener(
     'click',
@@ -996,10 +1021,6 @@
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}</div>
               <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}">Remove</button>
-              <div class="cc-move">
-                <button data-action="moveRow" data-arg="-1" aria-label="Move ${esc(item.title)} up" ${index === 0 ? 'disabled' : ''}>▲</button>
-                <button data-action="moveRow" data-arg="1" aria-label="Move ${esc(item.title)} down" ${index === group.items.length - 1 ? 'disabled' : ''}>▼</button>
-              </div>
             </div>`;
           })
           .join('');
@@ -1162,7 +1183,7 @@
     return `
       <div class="cc-placing cc-glass">
         <div class="cc-spinner"></div>
-        <div style="font-weight:700;font-size:20px;letter-spacing:-0.02em;margin-top:22px">Placing your orders</div>
+        <div class="cc-word" style="font-size:20px;margin-top:22px">Placing your orders</div>
         <div class="cc-muted" style="margin-top:8px;text-wrap:pretty">CrossCart is checking out on ${plural(order.legs.length, 'store')} with your card. This takes about a minute — you can leave this page.</div>
         <div style="font-weight:700;font-size:17px;margin-top:22px">${fmt(order.totalUsd)} charged</div>
       </div>`;
@@ -1198,7 +1219,7 @@
       <div style="max-width:720px">
         <div class="cc-card cc-panel">
           <div class="cc-result-head">
-            <div class="cc-grow" style="font-weight:700;font-size:17px">${headline}</div>
+            <div class="cc-grow cc-word" style="font-size:17px">${headline}</div>
             <div class="cc-faint" style="font-size:12.5px">Order ${esc(order.id)} · ${fmtDate(order.date)}</div>
           </div>
           <div style="display:flex;flex-direction:column;margin-top:10px">${legs}</div>
@@ -1298,7 +1319,7 @@
         <aside class="cc-side">
           <button class="cc-side-brand" data-action="goLanding">
             <img src="../icons/icon48.png" alt="" style="width:24px;height:24px;border-radius:7px" />
-            <span style="font-weight:700;font-size:15px;letter-spacing:-0.01em">CrossCart</span>
+            <span class="cc-word" style="font-size:15px">CrossCart</span>
           </button>
           <nav class="cc-sidenav">
             ${nav

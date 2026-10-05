@@ -8,7 +8,7 @@ body {
   min-height: 100vh;
   background: var(--cc-bg);
   color: var(--cc-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+  font-family: var(--cc-font-sans);
   font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
@@ -596,10 +596,15 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 .cc-btn-danger:hover { filter: brightness(1.08); }
 .cc-link-danger { background: none; border: none; color: var(--cc-text-faint); font-size: 12px; cursor: pointer; padding: 2px 0; }
 .cc-link-danger:hover { color: var(--cc-danger); text-decoration: underline; }
-/* Touch screens can't drag rows, so they get ▲▼ buttons instead. */
-.cc-move { display: none; }
-@media (pointer: coarse) {
-  .cc-move { display: flex; flex-direction: column; gap: 2px; }
-  .cc-move button { width: 32px; height: 22px; border: 1px solid var(--cc-border); border-radius: 8px; background: var(--cc-surface); color: var(--cc-text-muted); font-size: 10px; line-height: 1; cursor: pointer; }
-  .cc-move button:disabled { opacity: 0.35; cursor: default; }
+
+/* Display type from the Claude Design handoff (.cc-word): Instrument Sans Bold, tight tracking,
+   on the brand, headlines, page/cart/store/panel titles. Everything else stays system sans. */
+.cc-word, .cc-brand, .cc-hero h1, .cc-step-title, .cc-signin-title, .cc-pagetitle,
+.cc-cart-card-name, .cc-group-store, .cc-summary-title, .cc-panel-title {
+  font-family: var(--cc-font-display);
+  font-weight: 700;
+  letter-spacing: var(--cc-tracking-display);
 }
+
+/* Press-and-hold drag on touch: no iOS link preview or text callout while holding a row. */
+[data-store] > .cc-row, .cc-group-head { -webkit-touch-callout: none; }

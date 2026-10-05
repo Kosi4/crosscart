@@ -41,9 +41,10 @@ window.Crosscart = window.Crosscart || {};
     closePicker();
 
     const { lists: listsApi } = window.Crosscart;
-    const { lists } = await listsApi.loadLists();
+    const { lists, activeList } = await listsApi.loadLists();
     const listNames = Object.keys(lists);
-    const defaultName = listsApi.DEFAULT_LIST_NAME;
+    // The big button saves to the cart you used last; "General" only when you have no carts yet.
+    const defaultName = lists[activeList] ? activeList : listNames[0] || listsApi.DEFAULT_LIST_NAME;
     const otherNames = listNames.filter((n) => n !== defaultName);
 
     picker = document.createElement('div');

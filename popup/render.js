@@ -46,7 +46,8 @@ window.Crosscart = window.Crosscart || {};
   function renderItems(container, items, listName, preferredCurrency, rates, handlers) {
     const { formatMoney } = window.Crosscart;
     if (!items.length) {
-      container.innerHTML = '<div class="crosscart-empty">No items in this list yet.</div>';
+      container.innerHTML =
+        '<div class="crosscart-empty">Nothing here yet. Open a product page and press <strong>Add to CrossCart</strong>.</div>';
       return;
     }
     container.innerHTML = items

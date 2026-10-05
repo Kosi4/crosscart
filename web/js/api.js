@@ -167,6 +167,12 @@ window.Crosscart = window.Crosscart || {};
     await supabase.auth.signOut();
   }
 
+  // Removes the account and, by cascade, every list, item and waitlist row (public.delete_my_account).
+  async function deleteAccount() {
+    const { error } = await supabase.rpc('delete_my_account');
+    if (error) throw error;
+  }
+
   function onAuthChange(callback) {
     const { data } = supabase.auth.onAuthStateChange((event, session) => callback(event, session));
     return () => data.subscription.unsubscribe();
@@ -221,6 +227,7 @@ window.Crosscart = window.Crosscart || {};
     getPlan,
     isOnWaitlist,
     joinWaitlist,
+    deleteAccount,
     signInWithGoogle,
     sendEmailSignIn,
     verifyEmailCode,

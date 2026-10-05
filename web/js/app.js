@@ -17,6 +17,9 @@
     plan: 'free',
     waitlisted: false,
     saveBroken: false,
+    confirmDelete: false,
+    deleteBusy: false,
+    deleteError: '',
     waitlistBusy: false,
     waitlistError: '',
     feeOpen: false,
@@ -381,6 +384,37 @@
     },
 
     signOut: () => api.signOut(),
+
+    askDeleteAccount: () => {
+      state.confirmDelete = true;
+      state.deleteError = '';
+      render();
+    },
+
+    cancelDeleteAccount: () => {
+      state.confirmDelete = false;
+      render();
+    },
+
+    // The extension signs out first so its last sync can't write to an account that's gone.
+    deleteAccount: async () => {
+      state.deleteBusy = true;
+      render();
+      try {
+        if (await storage.isAvailable()) {
+          try {
+            await storage.signOutExtension();
+          } catch (e) {}
+        }
+        await api.deleteAccount();
+        state.confirmDelete = false;
+        await api.signOut();
+      } catch (e) {
+        state.deleteError = "Couldn't delete your account just now. Try again in a moment.";
+      }
+      state.deleteBusy = false;
+      render();
+    },
 
     demo: () => {
       setMode('demo');
@@ -1242,7 +1276,8 @@
               <div class="cc-eyebrow">Signed in</div>
               <div class="cc-ellipsis" style="margin-top:6px">${esc((state.session && state.session.user.email) || '')}</div>
             </div>
-            <button class="cc-btn cc-btn-plain" data-action="signOut">Sign out</button>`;
+            <button class="cc-btn cc-btn-plain" data-action="signOut">Sign out</button>
+            <button class="cc-link-danger" data-action="askDeleteAccount">Delete account</button>`;
 
     return `
       <div class="cc-shell">
@@ -1275,6 +1310,19 @@
               ${SUPPORTED_CURRENCIES.map((c) => `<option value="${c}" ${c === state.currency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
           </div>
+          ${
+            state.mode === 'real' && state.confirmDelete
+              ? `<div class="cc-card cc-notice cc-notice-row" role="alertdialog" aria-label="Delete account">
+                  <div class="cc-grow">
+                    <div style="font-weight:700;font-size:15px">Delete your account?</div>
+                    <div class="cc-muted" style="margin-top:4px">This removes your account and every list and item in it, for good. It can't be undone.</div>
+                    ${state.deleteError ? `<div class="cc-flag">${esc(state.deleteError)}</div>` : ''}
+                  </div>
+                  <button class="cc-btn cc-btn-md cc-btn-plain" data-action="cancelDeleteAccount">Cancel</button>
+                  <button class="cc-btn cc-btn-md cc-btn-danger" data-action="deleteAccount" ${state.deleteBusy ? 'disabled' : ''}>${state.deleteBusy ? 'Deleting…' : 'Delete for good'}</button>
+                </div>`
+              : ''
+          }
           ${
             state.mode === 'real' && state.saveBroken
               ? `<div class="cc-card cc-notice cc-notice-row" role="alert">

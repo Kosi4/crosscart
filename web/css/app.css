@@ -592,3 +592,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 
 .cc-waitlist-done { font-size: 13px; line-height: 1.45; padding: 12px 14px; border-radius: var(--cc-radius-md); background: var(--cc-surface); border: 1px solid var(--cc-border); margin: 14px 0 8px; text-wrap: pretty; }
 .cc-notice-row { display: flex; align-items: center; gap: 16px; }
+.cc-btn-danger { background: #b91c1c; color: #fff; border: 1px solid transparent; } /* same deep red in both themes, readable white text */
+.cc-btn-danger:hover { filter: brightness(1.08); }
+.cc-link-danger { background: none; border: none; color: var(--cc-text-faint); font-size: 12px; cursor: pointer; padding: 2px 0; }
+.cc-link-danger:hover { color: var(--cc-danger); text-decoration: underline; }

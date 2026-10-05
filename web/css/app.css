@@ -613,3 +613,5 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 .cc-landing-foot a { color: var(--cc-text-faint); text-decoration: none; }
 .cc-landing-foot a:hover { color: var(--cc-text); text-decoration: underline; }
 .cc-signin-legal a { color: inherit; text-decoration: underline; }
+/* Product names wrap to two lines: with size and colour pickers a one-line name shrank to "Skele…". */
+.cc-item-title.cc-ellipsis { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; min-width: 96px; }

@@ -82,6 +82,13 @@ window.Crosscart = window.Crosscart || {};
     return { ...lists, [listName]: items };
   }
 
+  // Whole-number percent off when the item was saved on sale, else 0.
+  function salePercent(item) {
+    const was = Number(item && item.originalPrice);
+    const now = Number(item && item.price);
+    return was > now && now > 0 ? Math.round((1 - now / was) * 100) : 0;
+  }
+
   function deleteItem(lists, listName, itemId) {
     const items = (lists[listName] || []).filter((item) => item.id !== itemId);
     return { ...lists, [listName]: items };
@@ -135,6 +142,7 @@ window.Crosscart = window.Crosscart || {};
     renameList,
     saveToList,
     deleteItem,
+    salePercent,
     updateItemQuantity,
     setItemVariant,
     clearAll,

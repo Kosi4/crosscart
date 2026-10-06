@@ -620,3 +620,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 .cc-readonly .cc-remove, .cc-readonly .cc-variant-free { display: none; }
 .cc-readonly .cc-qty, .cc-readonly .cc-variant-pick select { pointer-events: none; opacity: 0.75; }
 .cc-readonly [data-store] > .cc-row, .cc-readonly .cc-group-head { cursor: default; }
+
+/* Saved on sale: the pre-sale price struck through and the discount. */
+.cc-was { font-size: 11.5px; font-weight: 500; color: var(--cc-text-faint); margin-top: 2px; white-space: nowrap; }
+.cc-sale { color: var(--cc-ok, #16a34a); font-weight: 700; }

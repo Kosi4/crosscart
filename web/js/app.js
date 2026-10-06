@@ -1051,7 +1051,11 @@
               }
               ${pickers || freeSize ? `<div class="cc-variant-picks">${pickers || freeSize}</div>` : ''}
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
-              <div class="cc-price">${fmt(lineUsd(item))}</div>
+              <div class="cc-price">${fmt(lineUsd(item))}${
+                listsApi.salePercent(item)
+                  ? `<div class="cc-was"><s>${fmt(lineUsd({ ...item, price: item.originalPrice }))}</s> <span class="cc-sale">-${listsApi.salePercent(item)}%</span></div>`
+                  : ''
+              }</div>
               <button class="cc-remove" data-action="removeItem" data-arg="${esc(item.id)}" aria-label="Remove ${esc(item.title)}">Remove</button>
             </div>`;
           })

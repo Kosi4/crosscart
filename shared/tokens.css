@@ -12,6 +12,7 @@
   --cc-accent: #52525b;
   --cc-accent-hover: #3f3f46;
   --cc-danger: #b91c1c;
+  --cc-ok: #15803d;
   --cc-danger-soft: rgba(185, 28, 28, 0.1);
   --cc-warn: #b45309;
   --cc-warn-soft: rgba(245, 158, 11, 0.16);
@@ -68,6 +69,7 @@
   --cc-accent: #d4d4d8;
   --cc-accent-hover: #e4e4e7;
   --cc-danger: #fb7185;
+  --cc-ok: #4ade80;
   --cc-danger-soft: rgba(251, 113, 133, 0.14);
   --cc-warn: #fbbf24;
   --cc-warn-soft: rgba(245, 158, 11, 0.18);

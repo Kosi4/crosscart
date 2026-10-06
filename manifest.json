@@ -3,7 +3,10 @@
   "name": "CrossCart",
   "version": "1.0.0",
   "description": "Save products from any online store into named carts, with one running total in your currency, synced to your account.",
-  "permissions": ["storage", "alarms"],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
   "background": {
     "service_worker": "background/sync.js"
   },
@@ -23,8 +26,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "exclude_matches": ["http://localhost/web/*"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "exclude_matches": [
+        "http://localhost/web/*"
+      ],
       "js": [
         "shared/constants.js",
         "shared/currency.js",
@@ -37,13 +44,32 @@
         "content/picker.js",
         "content/content.js"
       ],
-      "css": ["content/content.css"],
+      "css": [
+        "content/content.css"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["http://localhost/web/*"],
-      "js": ["shared/constants.js", "shared/storage.js", "content/web-bridge.js"],
+      "matches": [
+        "http://localhost/web/*"
+      ],
+      "js": [
+        "shared/constants.js",
+        "shared/storage.js",
+        "content/web-bridge.js"
+      ],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "fonts/InstrumentSans-Bold.woff2"
+      ],
+      "matches": [
+        "<all_urls>"
+      ],
+      "use_dynamic_url": false
     }
   ]
 }

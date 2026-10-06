@@ -194,6 +194,7 @@ window.Crosscart = window.Crosscart || {};
         image: row.image_url || '',
         price: minor === null || minor === undefined ? '' : row.saved_currency === 'JPY' ? minor : minor / 100,
         currency: row.saved_currency || 'USD',
+        originalPrice: row.original_price_minor ? (row.saved_currency === 'JPY' ? row.original_price_minor : row.original_price_minor / 100) : '',
         quantity: row.quantity,
         savedAt: Date.parse(row.saved_at) || 0,
         variantSelected: row.variant_selected || {},

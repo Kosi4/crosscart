@@ -44,6 +44,7 @@ function scrape(file, url) {
     title: p.title,
     price: String(p.price),
     currency: p.currency,
+    originalPrice: p.originalPrice || '',
     image: /^https:\/\/.+/.test(p.image || '') && !/logo/i.test(p.image) ? 'photo' : p.image ? `bad:${p.image.slice(0, 60)}` : 'none',
     options: Object.keys(p.variantOptions || {}).sort(),
   };

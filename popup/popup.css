@@ -446,3 +446,7 @@ a.crosscart-item-link:hover .crosscart-item-title {
 
 /* Armed: the next tap deletes the open cart. */
 .crosscart-icon-btn-danger[data-armed] { background: var(--cc-danger); color: #fff; }
+
+/* Saved on sale: the pre-sale price struck through and the discount. */
+.crosscart-was { font-weight: 500; font-size: var(--cc-font-sm); color: var(--cc-text-faint); margin-left: 4px; }
+.crosscart-sale { font-size: var(--cc-font-sm); color: var(--cc-ok, #16a34a); }

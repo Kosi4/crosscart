@@ -64,7 +64,11 @@ window.Crosscart = window.Crosscart || {};
           <div class="crosscart-item-info">
             <div class="crosscart-item-title">${escapeHtml(item.title)}</div>
             <div class="crosscart-item-domain">${escapeHtml(item.domain)}</div>
-            <div class="crosscart-item-price">${formatMoney(converted, preferredCurrency)}</div>
+            <div class="crosscart-item-price">${formatMoney(converted, preferredCurrency)}${
+              window.Crosscart.lists.salePercent(item)
+                ? ` <s class="crosscart-was">${formatMoney(window.Crosscart.currencyRates.convertAmount(item.originalPrice, item.currency, preferredCurrency, rates), preferredCurrency)}</s> <span class="crosscart-sale">-${window.Crosscart.lists.salePercent(item)}%</span>`
+                : ''
+            }</div>
           </div>`;
         return `
         <div class="crosscart-item" draggable="true" data-index="${index}" data-id="${escapeHtml(item.id)}">

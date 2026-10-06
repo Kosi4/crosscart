@@ -245,28 +245,39 @@ window.Crosscart = window.Crosscart || {};
   // the biggest file on the page (cottonon.com) while showing at 0px. Among what's
   // actually on screen outside the header/nav/footer, the biggest wins; ties go to the
   // one shown first (top, then left), which is the gallery's lead photo.
+  // The product photo sits at the top of the page, next to the name and price. Bigger
+  // pictures further down are marketing banners (Amazon's iPhone page: the "From the
+  // manufacturer" banners are 8x the photo), so the top of the page is searched first.
   function findLargestImage() {
-    let best = null;
-    let bestArea = 0;
-    let bestTop = Infinity;
-    let bestLeft = Infinity;
-    document.querySelectorAll('img').forEach((img) => {
-      const r = img.getBoundingClientRect();
-      if (!r.width || !r.height || r.right <= 0 || r.left >= window.innerWidth) return;
-      if (getComputedStyle(img).visibility === 'hidden') return;
-      if (img.closest('header, nav, footer')) return;
-      const area = r.width * r.height;
-      const top = r.top + window.scrollY;
-      if (area > bestArea || (area === bestArea && (top < bestTop || (top === bestTop && r.left < bestLeft)))) {
-        best = img;
-        bestArea = area;
-        bestTop = top;
-        bestLeft = r.left;
-      }
-    });
-    if (best) return best.currentSrc || best.src;
+    const topLimit = window.innerHeight * 1.5;
+    for (const nearTop of [true, false]) {
+      let best = null;
+      let bestArea = 0;
+      let bestTop = Infinity;
+      let bestLeft = Infinity;
+      document.querySelectorAll('img').forEach((img) => {
+        const r = img.getBoundingClientRect();
+        if (!r.width || !r.height || r.right <= 0 || r.left >= window.innerWidth) return;
+        if (getComputedStyle(img).visibility === 'hidden') return;
+        if (img.closest('header, nav, footer')) return;
+        const area = r.width * r.height;
+        const top = r.top + window.scrollY;
+        if (nearTop && top > topLimit) return;
+        if (area > bestArea || (area === bestArea && (top < bestTop || (top === bestTop && r.left < bestLeft)))) {
+          best = img;
+          bestArea = area;
+          bestTop = top;
+          bestLeft = r.left;
+        }
+      });
+      // A tiny icon near the top isn't the photo; then look further down.
+      if (best && bestArea >= 150 * 150) return best.currentSrc || best.src;
+      if (best && !nearTop) return best.currentSrc || best.src;
+    }
 
     // Nothing rendered yet (e.g. lazy images): fall back to the biggest file.
+    let best = null;
+    let bestArea = 0;
     document.querySelectorAll('img').forEach((img) => {
       const area = (img.naturalWidth || img.width || 0) * (img.naturalHeight || img.height || 0);
       if (area > bestArea) {
@@ -311,7 +322,14 @@ window.Crosscart = window.Crosscart || {};
     '[class*="regular-price"]',
     '[class*="list-price"]',
     '[class*="strike"]',
+    '[class*="basisprice"]', // Amazon's "List Price: R19 299"
+    '[class*="basis-price"]',
+    '[class*="original-price"]',
+    '[class*="compare-at"]',
   ].join(',');
+
+  // Labelled old prices: "List Price: R19 299", "Was $40", "RRP £20", "You save R4 300".
+  const WAS_PRICE_TEXT = /^(list price|was|rrp|compare at|original price|regular price|you save|save)\b/i;
 
   // "1 499,95" / "1,499.95" / "1499.95" -> "1499.95". When both separators are
   // present the last one is the decimal point; a lone comma is only a decimal
@@ -343,7 +361,7 @@ window.Crosscart = window.Crosscart || {};
     // Sale/current markers first (<ins> is WooCommerce's sale price) so a
     // discounted item resolves to what you would actually pay.
     const groups = [
-      'ins, [class*="price"][class*="sale"], [class*="price"][class*="current"]',
+      'ins, [class*="price"][class*="sale"], [class*="price"][class*="current"], [class*="pricetopay"], [class*="price-to-pay"]',
       'ins, [class*="price"], [itemprop="price"]',
     ];
     for (const selector of groups) {
@@ -351,6 +369,7 @@ window.Crosscart = window.Crosscart || {};
         if (el.closest(PRICE_EXCLUDED)) continue;
         if (el.querySelector('[class*="price"], ins')) continue; // prefer the leaf node
         const text = el.textContent.replace(/\s+/g, ' ').trim();
+        if (WAS_PRICE_TEXT.test(text)) continue;
         const match = text.match(PRICE_PATTERN);
         if (match) return match[0];
       }
@@ -372,6 +391,53 @@ window.Crosscart = window.Crosscart || {};
       }
     }
     return document.body ? findPriceIn(document.body) : '';
+  }
+
+  // The pre-sale price, when the page shows one: JSON-LD's StrikethroughPrice/ListPrice, else a
+  // struck-through or labelled ("List Price", "Was", "RRP", "Compare at") price beside the real
+  // one. Only kept if it's above the current price and not absurdly so (another product's price).
+  const OLD_PRICE_SELECTOR = [
+    'del', 's', 'strike', '[class*="was-price"]', '[class*="old-price"]', '[class*="regular-price"]',
+    '[class*="list-price"]', '[class*="compare-at"]', '[class*="basisprice"]', '[class*="original-price"]',
+    '[class*="strike"]',
+  ].join(',');
+  const OTHER_PRODUCTS = 'nav, footer, aside, [class*="related"], [class*="upsell"], [class*="cross-sell"], [class*="recommend"], [class*="carousel"], [class*="also-"]';
+
+  function plausibleOriginal(value, price) {
+    const was = Number(value);
+    const now = Number(price);
+    return Number.isFinite(was) && now > 0 && was > now * 1.005 && was < now * 5 ? String(was) : '';
+  }
+
+  function findOriginalPrice(price) {
+    if (!(Number(price) > 0)) return '';
+    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+      try {
+        const nodes = window.Crosscart.detect.collectJsonLdNodes(JSON.parse(script.textContent));
+        for (const node of nodes) {
+          for (const offer of [].concat(node.offers || [])) {
+            for (const spec of [].concat((offer && offer.priceSpecification) || [])) {
+              if (spec && /Strikethrough|ListPrice|MSRP/i.test(String(spec.priceType || ''))) {
+                const hit = plausibleOriginal(spec.price, price);
+                if (hit) return hit;
+              }
+            }
+          }
+        }
+      } catch (e) {}
+    }
+    const scopes = [];
+    for (const selector of PRICE_SCOPES) document.querySelectorAll(selector).forEach((el) => scopes.push(el));
+    if (document.body) scopes.push(document.body);
+    for (const scope of scopes) {
+      for (const el of scope.querySelectorAll(OLD_PRICE_SELECTOR)) {
+        if (el.closest(OTHER_PRODUCTS)) continue;
+        const match = el.textContent.replace(/\s+/g, ' ').match(PRICE_PATTERN);
+        const hit = match && plausibleOriginal(normalizeAmount(match[0]), price);
+        if (hit) return hit;
+      }
+    }
+    return '';
   }
 
   // "Color: Photo Color" / "Size: S" — a near-leaf node whose whole text is
@@ -801,6 +867,8 @@ window.Crosscart = window.Crosscart || {};
       if (variantPrice.currency) merged.currency = variantPrice.currency;
     }
     if (variantImage) merged.image = variantImage;
+
+    merged.originalPrice = findOriginalPrice(normalizeAmount(merged.price));
 
     // Shopify og:image is often http:// or protocol-relative, and microdata src can be relative;
     // store an absolute https URL so the image loads on https pages.

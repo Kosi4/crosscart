@@ -250,5 +250,17 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
   assert.strictEqual(w6.store.cartLists.Tops[0].title, 'Shirt');
   console.log('15 server fix survives chrome.storage key sorting: ok');
 
+  // A sale price syncs as cents and comes back as the same number.
+  const tee = { ...item('1789-tee', 'Tee', 'https://shop.com/tee', '14999', 'ZAR'), originalPrice: '19299' };
+  const w7 = makeWorld({ cartLists: { Tops: [tee] }, activeList: 'Tops' });
+  await w7.send({ type: 'linkExtension', tokenHash: 'hash' });
+  assert.strictEqual(w7.db.list_items[0].original_price_minor, 1929900);
+  const w8 = makeWorld({ cartLists: {}, activeList: null });
+  w8.db.lists = clone(w7.db.lists);
+  w8.db.list_items = clone(w7.db.list_items);
+  await w8.send({ type: 'linkExtension', tokenHash: 'hash' });
+  assert.strictEqual(w8.store.cartLists.Tops[0].originalPrice, 19299);
+  console.log('16 sale price round-trips: ok');
+
   console.log('ALL SYNC CHECKS PASSED');
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });

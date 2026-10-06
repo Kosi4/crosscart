@@ -589,7 +589,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   .cc-row > .cc-item-link { flex: 1 1 calc(100% - 40px); min-width: 0; }
   .cc-row > .cc-remove { padding: 4px 0 4px 4px; }
   .cc-row > .cc-variant-picks { margin-left: 27px; justify-content: flex-start; max-width: none; }
-  .cc-row > .cc-item-link + .cc-qty { margin-left: 27px; }
+
   .cc-row > .cc-price { margin-left: auto; width: auto; }
 }
 
@@ -637,7 +637,11 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   /* Phone rows: name; options + quantity; price + Remove. */
   .cc-row > .cc-variant-picks { flex: 1 1 0; min-width: 0; margin-left: 27px; grid-template-columns: minmax(0, 1fr) 64px; }
   .cc-row > .cc-variant-picks:has(.cc-pick-other:empty):has(.cc-pick-size:empty) { display: none; }
-  .cc-row > .cc-qty { align-self: flex-end; }
+  .cc-row > .cc-qty-pick { align-self: flex-end; }
   .cc-row > .cc-price { margin-left: 27px; flex: 0 0 calc(100% - 27px - 66px - 20px); text-align: left; }
   .cc-group-head .cc-caret { width: auto; padding-right: 0; }
 }
+
+/* Labels above the size, colour and quantity boxes sit centred over them. */
+.cc-variant-pick > span { text-align: center; }
+.cc-qty-pick { flex-shrink: 0; width: 54px; }

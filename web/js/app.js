@@ -1062,7 +1062,10 @@
                   : `<div class="cc-item-link">${body}</div>`
               }
               ${picks}
-              <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
+              <label class="cc-variant-pick cc-qty-pick">
+                <span>Quantity</span>
+                <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity of ${esc(item.title)}" />
+              </label>
               <div class="cc-price">${fmt(lineUsd(item))}${
                 listsApi.salePercent(item)
                   ? `<div class="cc-was"><s>${fmt(lineUsd({ ...item, price: item.originalPrice }))}</s> <span class="cc-sale">-${listsApi.salePercent(item)}%</span></div>`

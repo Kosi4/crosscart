@@ -1119,7 +1119,7 @@
         return `
         <div class="cc-line">
           <div class="cc-grow">
-            <div style="font-weight:600">${esc(store.name)}</div>
+            <div class="cc-group-store">${esc(store.name)}</div>
             <div class="cc-line-meta">${plural(g.items.length, 'item')} · ${fmt(store.shipUsd)} shipping${priced}</div>
           </div>
           <div style="font-weight:700">${fmt(goodsUsd(g.items) + store.shipUsd)}</div>
@@ -1195,7 +1195,7 @@
         return `
         <div class="cc-line">
           <div class="cc-grow">
-            <div style="font-weight:600">${esc(store.name)}</div>
+            <div class="cc-group-store">${esc(store.name)}</div>
             <div class="cc-line-meta">${plural(g.items.length, 'item')} · ${fmt(store.shipUsd)} estimated shipping</div>
           </div>
           <div style="font-weight:700">${fmt(goodsUsd(g.items) + store.shipUsd)}</div>

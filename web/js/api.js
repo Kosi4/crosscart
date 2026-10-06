@@ -11,27 +11,6 @@ window.Crosscart = window.Crosscart || {};
     'jdsports.co.za': { name: 'JD Sports', shipUsd: 9.5 },
     'thesupermade.com': { name: 'The Supermade', shipUsd: 12.0 },
   };
-  // Display names for the stores CrossCart promises at launch; others show their web address.
-  const STORE_NAMES = {
-    'youngla.com': 'YoungLA',
-    'kywmovement.com': 'KYW Movement',
-    'frclothingandsupply.com': 'FR Clothing & Supply',
-    'osmanlioud.net': 'Osmanli Oud',
-    'amazon.co.za': 'Amazon',
-    'amazon.com': 'Amazon',
-    'stockx.com': 'StockX',
-    'spaceboy-apparel.com': 'Spaceboy',
-    'cottonon.com': 'Cotton On',
-    'classicfootballshirts.co.uk': 'Classic Football Shirts',
-    'kittedsa.co.za': 'Kitted SA',
-    'samsung.com': 'Samsung',
-    'istore.co.za': 'iStore',
-    'farfetch.com': 'Farfetch',
-    'shopvaleforever.com': 'Vale Forever',
-    'vale-forever.org': 'Vale Forever',
-    'valeforever.org': 'Vale Forever',
-    'vale-clothing.com': 'Vale Forever',
-  };
   // ponytail: flat mock shipping for unknown stores, real quotes come from the checkout agent
   const DEFAULT_SHIP_USD = 8.0;
 
@@ -90,8 +69,7 @@ window.Crosscart = window.Crosscart || {};
     const key = storeKey(domain);
     const known = STORES[key];
     // "za.osmanlioud.net" / "shop.x.com" -> "osmanlioud.net" / "x.com" for the name lookup and fallback.
-    const bare = key.replace(/^(za|uk|us|au|eu|en|shop|store)\./, '');
-    const name = known ? known.name : STORE_NAMES[key] || STORE_NAMES[bare] || bare;
+    const name = known ? known.name : window.Crosscart.lists.storeName(key);
     return { key, name, shipUsd: known ? known.shipUsd : DEFAULT_SHIP_USD };
   }
 

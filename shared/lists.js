@@ -82,6 +82,38 @@ window.Crosscart = window.Crosscart || {};
     return { ...lists, [listName]: items };
   }
 
+  // Display names for the stores CrossCart promises at launch; others show their web address.
+  const STORE_NAMES = {
+    'wearerighteous.com.co': 'Righteous',
+    'jdsports.co.za': 'JD Sports',
+    'thesupermade.com': 'The Supermade',
+    'youngla.com': 'YoungLA',
+    'kywmovement.com': 'KYW Movement',
+    'frclothingandsupply.com': 'FR Clothing & Supply',
+    'osmanlioud.net': 'Osmanli Oud',
+    'amazon.co.za': 'Amazon',
+    'amazon.com': 'Amazon',
+    'stockx.com': 'StockX',
+    'spaceboy-apparel.com': 'Spaceboy',
+    'cottonon.com': 'Cotton On',
+    'classicfootballshirts.co.uk': 'Classic Football Shirts',
+    'kittedsa.co.za': 'Kitted SA',
+    'samsung.com': 'Samsung',
+    'istore.co.za': 'iStore',
+    'farfetch.com': 'Farfetch',
+    'shopvaleforever.com': 'Vale Forever',
+    'vale-forever.org': 'Vale Forever',
+    'valeforever.org': 'Vale Forever',
+    'vale-clothing.com': 'Vale Forever',
+  };
+
+  // "www.za.osmanlioud.net" -> "Osmanli Oud"; unknown stores show their address without www/country prefixes.
+  function storeName(domain) {
+    const key = String(domain || '').toLowerCase().replace(/^www\./, '');
+    const bare = key.replace(/^(za|uk|us|au|eu|en|shop|store)\./, '');
+    return STORE_NAMES[key] || STORE_NAMES[bare] || bare;
+  }
+
   // Whole-number percent off when the item was saved on sale, else 0.
   function salePercent(item) {
     const was = Number(item && item.originalPrice);
@@ -143,6 +175,7 @@ window.Crosscart = window.Crosscart || {};
     saveToList,
     deleteItem,
     salePercent,
+    storeName,
     updateItemQuantity,
     setItemVariant,
     clearAll,

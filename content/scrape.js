@@ -89,6 +89,9 @@ window.Crosscart = window.Crosscart || {};
     return found.map(normalizeName).filter(Boolean);
   }
 
+  // Store slogans tacked onto a name ("Skyfall Flannel - Shop Now").
+  const SHOP_SLOGAN = /^(shop now|buy now|buy online|shop online|order now|free (shipping|delivery)|official (site|store)|online store|sale)$/i;
+
   function stripSiteSuffix(title) {
     if (!title) return '';
     const candidates = siteNameCandidates();
@@ -102,7 +105,8 @@ window.Crosscart = window.Crosscart || {};
     while (parts.length > 1) {
       const last = normalizeName(parts[parts.length - 1]);
       const isSiteName =
-        last && candidates.some((c) => last === c || last.startsWith(c) || c.startsWith(last));
+        (last && candidates.some((c) => last === c || last.startsWith(c) || c.startsWith(last))) ||
+        SHOP_SLOGAN.test(parts[parts.length - 1].trim());
       if (!isSiteName) break;
       parts = parts.slice(0, -1);
     }
@@ -852,7 +856,8 @@ window.Crosscart = window.Crosscart || {};
     const tiers = [jsonLd, scrapeMetaTags(), scrapeMicrodata(), scrapeDomFallback()];
     const merged = mergeProductData(...tiers);
 
-    merged.title = decodeEntities(merged.title);
+    // Invisible zero-width characters some stores put in names (Vale: "Flannel\u200B - Shop Now").
+    merged.title = decodeEntities(merged.title).replace(/[\u200B-\u200D\u2060\uFEFF]/g, '');
 
     if (agentSites.matchesAgentSite(hostname)) {
       const agentTitle = agentSites.findAgentProductTitle();

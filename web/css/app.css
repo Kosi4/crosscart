@@ -427,7 +427,10 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   background: var(--cc-surface);
 }
 
-.cc-variant-picks { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; max-width: 240px; }
+.cc-variant-picks { display: grid; grid-template-columns: 132px 76px; gap: 8px; align-items: end; flex-shrink: 0; }
+.cc-pick-other, .cc-pick-size { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cc-variant-pick select, .cc-variant-free input, .cc-variant-fixed { width: 100%; max-width: none; }
+.cc-variant-fixed { height: 32px; box-sizing: border-box; display: flex; align-items: center; padding: 0 10px; border-radius: var(--cc-radius-pill); border: 1px solid transparent; background: var(--cc-surface-hover); color: var(--cc-text); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cc-variant-pick { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--cc-text-faint); }
 .cc-variant-pick select {
   height: 32px;
@@ -624,3 +627,17 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 /* Saved on sale: the pre-sale price struck through and the discount. */
 .cc-was { font-size: 11.5px; font-weight: 500; color: var(--cc-text-faint); margin-top: 2px; white-space: nowrap; }
 .cc-sale { color: var(--cc-ok, #16a34a); font-weight: 700; }
+
+/* Store header total sits in the same column as the item prices below it. */
+.cc-group-head { gap: 14px; }
+.cc-group-total { font-weight: 700; }
+.cc-group-head .cc-caret { width: 66px; text-align: right; padding-right: 6px; box-sizing: border-box; }
+.cc-remove { width: 66px; text-align: center; }
+@media (max-width: 760px) {
+  /* Phone rows: name; options + quantity; price + Remove. */
+  .cc-row > .cc-variant-picks { flex: 1 1 0; min-width: 0; margin-left: 27px; grid-template-columns: minmax(0, 1fr) 64px; }
+  .cc-row > .cc-variant-picks:has(.cc-pick-other:empty):has(.cc-pick-size:empty) { display: none; }
+  .cc-row > .cc-qty { align-self: flex-end; }
+  .cc-row > .cc-price { margin-left: 27px; flex: 0 0 calc(100% - 27px - 66px - 20px); text-align: left; }
+  .cc-group-head .cc-caret { width: auto; padding-right: 0; }
+}

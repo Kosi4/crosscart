@@ -906,7 +906,7 @@
       );
     }
     if (q.conversion) {
-      parts.push([`Currency conversion (${PRICING.FX_RATE * 100}%) · ${plural(q.foreignStores, 'store')}`, fmt(q.conversion)]);
+      parts.push([`Conversion ${PRICING.FX_RATE * 100}% · ${plural(q.foreignStores, 'store')}`, fmt(q.conversion)]);
     }
 
     const open = state.feeOpen;
@@ -1005,40 +1005,52 @@
               /^option \d+$/i.test(g) && (options[g] || []).every((v) => SIZE_VALUE.test(v))
                 ? 'Size'
                 : g.charAt(0).toUpperCase() + g.slice(1);
-            // Groups with a real choice get a dropdown; fixed values stay as text.
+            // Every row has the same two option columns (other option | size) so they line up
+            // down the cart: a real choice is a dropdown, a single fixed value a plain pill, and
+            // a store that gave no options gets a box to type the size.
             const noOptions = !Object.keys(options).length;
-            const choosable = Object.keys(options).filter((k) => (options[k] || []).length > 1);
-            const variantText = Object.entries(variant)
-              .filter(([k, v]) => v && !choosable.includes(k) && !(noOptions && k === 'Size') && !((options[k] || []).length <= 1 && PLACEHOLDER_VARIANT_VALUE.test(v)))
-              .map(([k, v]) => `${groupLabel(k)}: ${v}`)
-              .join(' · ');
-            const unconfirmed = item.variantConfidence === 'low' && (variantText || choosable.length);
-            const pickers = choosable
-              .map((group) => {
-                const current = variant[group] || '';
-                const opts = options[group]
-                  .map((v) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(v)}</option>`)
-                  .join('');
-                return `<label class="cc-variant-pick${unconfirmed ? ' cc-variant-pick-unsure' : ''}">
-                  <span>${esc(groupLabel(group))}</span>
-                  <select data-change="variant" data-arg="${esc(item.id)}" data-group="${esc(group)}" aria-label="${esc(groupLabel(group))} for ${esc(item.title)}">
+            const isSizeGroup = (g) => groupLabel(g) === 'Size' || /size/i.test(g);
+            const shown = Object.keys(options).filter((g) => {
+              const values = options[g] || [];
+              return values.length > 1 || (values.length === 1 && !PLACEHOLDER_VARIANT_VALUE.test(values[0]));
+            });
+            const unconfirmed = item.variantConfidence === 'low' && shown.length > 0;
+            const cell = (group) => {
+              const values = options[group] || [];
+              const label = esc(groupLabel(group));
+              if (values.length === 1) {
+                return `<div class="cc-variant-pick"><span>${label}</span><div class="cc-variant-fixed" title="${esc(values[0])}">${esc(values[0])}</div></div>`;
+              }
+              const current = variant[group] || '';
+              const opts = values.map((v) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(v)}</option>`).join('');
+              return `<label class="cc-variant-pick${unconfirmed ? ' cc-variant-pick-unsure' : ''}">
+                  <span>${label}</span>
+                  <select data-change="variant" data-arg="${esc(item.id)}" data-group="${esc(group)}" aria-label="${label} for ${esc(item.title)}">
                     ${current ? '' : `<option value="" selected disabled>Choose</option>`}${opts}
                   </select>
                 </label>`;
-              })
-              .join('');
-            // No list from the store (Cotton On has no product data): the shopper can type a size.
-            const freeSize = noOptions
-              ? `<label class="cc-variant-pick cc-variant-free">
+            };
+            const sizeGroup = shown.find(isSizeGroup);
+            const otherGroups = shown.filter((g) => g !== sizeGroup);
+            const sizeCell = sizeGroup
+              ? cell(sizeGroup)
+              : noOptions
+                ? `<label class="cc-variant-pick cc-variant-free">
                   <span>Size</span>
                   <input type="text" maxlength="20" placeholder="Add" value="${esc(variant.Size || '')}" data-change="variant" data-arg="${esc(item.id)}" data-group="Size" aria-label="Size for ${esc(item.title)}" />
                 </label>`
-              : '';
+                : '';
+            const picks = `<div class="cc-variant-picks"><div class="cc-pick-other">${otherGroups.map(cell).join('')}</div><div class="cc-pick-size">${sizeCell}</div></div>`;
+            // Anything chosen that has no column (rare) still shows under the name.
+            const variantText = Object.entries(variant)
+              .filter(([k, v]) => v && !shown.includes(k) && !(noOptions && k === 'Size') && !PLACEHOLDER_VARIANT_VALUE.test(v))
+              .map(([k, v]) => `${groupLabel(k)}: ${v}`)
+              .join(' · ');
             const body = `
                 ${img ? `<img class="cc-thumb" src="${esc(img)}" alt="" loading="lazy" referrerpolicy="no-referrer" draggable="false" />` : '<div class="cc-thumb"></div>'}
                 <div class="cc-grow">
                   <div class="cc-ellipsis cc-item-title">${esc(item.title)}</div>
-                  ${variantText || unconfirmed ? `<div class="cc-item-variant">${esc(variantText)}${unconfirmed ? `${variantText ? ' · ' : ''}<span class="cc-item-variant-unsure">${pickers ? 'confirm your choice' : 'confirm on site'}</span>` : ''}</div>` : ''}
+                  ${variantText || unconfirmed ? `<div class="cc-item-variant">${esc(variantText)}${unconfirmed ? `${variantText ? ' · ' : ''}<span class="cc-item-variant-unsure">${shown.some((g) => options[g].length > 1) ? 'confirm your choice' : 'confirm on site'}</span>` : ''}</div>` : ''}
                   ${flag ? `<div class="cc-flag">${flag}</div>` : ''}
                 </div>`;
             return `
@@ -1049,7 +1061,7 @@
                   ? `<a class="cc-item-link" href="${esc(href)}" target="_blank" rel="noopener noreferrer" draggable="false" title="Open product page">${body}</a>`
                   : `<div class="cc-item-link">${body}</div>`
               }
-              ${pickers || freeSize ? `<div class="cc-variant-picks">${pickers || freeSize}</div>` : ''}
+              ${picks}
               <input class="cc-qty" type="number" min="1" value="${item.quantity || 1}" data-change="quantity" data-arg="${esc(item.id)}" aria-label="Quantity" />
               <div class="cc-price">${fmt(lineUsd(item))}${
                 listsApi.salePercent(item)
@@ -1067,7 +1079,7 @@
               <div class="cc-group-store">${esc(store.name)}</div>
               ${store.name.toLowerCase() === group.domain.toLowerCase() ? '' : `<div class="cc-group-domain">${esc(group.domain)}</div>`}
             </div>
-            <div style="font-weight:700">${fmt(goodsUsd(group.items.filter(isSelected)))}</div>
+            <div class="cc-group-total">${fmt(goodsUsd(group.items.filter(isSelected)))}</div>
             <div class="cc-caret">${open ? '▾' : '▸'}</div>
           </button>
           ${open ? `<div data-store="${esc(group.domain)}">${rows}</div>` : ''}

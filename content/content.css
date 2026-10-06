@@ -131,3 +131,8 @@
   border-color: rgba(255, 255, 255, 0.14) !important;
 }
 #crosscart-picker.crosscart-dark .crosscart-picker-chip:hover { background: rgba(255, 255, 255, 0.16) !important; }
+
+/* The "+ New list" button turns into this name box. */
+#crosscart-picker .crosscart-picker-name { cursor: text !important; text-align: left !important; font-weight: 500 !important; }
+#crosscart-picker .crosscart-picker-name::placeholder { color: rgba(255, 255, 255, 0.7) !important; }
+#crosscart-picker.crosscart-dark .crosscart-picker-name::placeholder { color: rgba(24, 24, 27, 0.6) !important; }

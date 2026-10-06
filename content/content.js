@@ -39,11 +39,25 @@
     }, 1500);
   }
 
+  // After the extension is updated or reloaded, buttons in tabs that were already open are
+  // cut off from it (Chrome doesn't re-inject into open tabs). Say so instead of failing.
   function onAddClick() {
+    if (!window.Crosscart.storage.alive()) {
+      if (button.dataset.stale) return location.reload();
+      button.dataset.stale = 'true';
+      button.textContent = 'CrossCart was updated: click to reload page';
+      return;
+    }
     const product = window.Crosscart.scrape.scrapeProduct();
-    window.Crosscart.picker.showPicker(button, product, (listName) => {
-      if (button) flashSaved(button, listName);
-    });
+    window.Crosscart.picker
+      .showPicker(button, product, (listName) => {
+        if (button) flashSaved(button, listName);
+      })
+      .catch(() => {
+        window.Crosscart.picker.closePicker();
+        button.dataset.stale = 'true';
+        button.textContent = 'CrossCart was updated: click to reload page';
+      });
   }
 
   function syncButtonForPage() {

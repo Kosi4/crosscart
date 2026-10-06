@@ -30,9 +30,17 @@ window.Crosscart = window.Crosscart || {};
 
   async function handlePick(listName, product, anchorEl, onSaved) {
     const { lists: listsApi } = window.Crosscart;
-    const { lists } = await listsApi.loadLists();
-    const updated = listsApi.saveToList(lists, listName, product);
-    await listsApi.persistLists(updated, listName);
+    try {
+      const { lists } = await listsApi.loadLists();
+      const updated = listsApi.saveToList(lists, listName, product);
+      await listsApi.persistLists(updated, listName);
+    } catch (e) {
+      // The extension was reloaded while the picker was open: the button explains it next click.
+      closePicker();
+      if (anchorEl) anchorEl.textContent = 'CrossCart was updated: click to reload page';
+      if (anchorEl) anchorEl.dataset.stale = 'true';
+      return;
+    }
     closePicker();
     if (onSaved) onSaved(listName);
   }
@@ -41,11 +49,8 @@ window.Crosscart = window.Crosscart || {};
     closePicker();
 
     const { lists: listsApi } = window.Crosscart;
-    const { lists, activeList } = await listsApi.loadLists();
+    const { lists } = await listsApi.loadLists();
     const listNames = Object.keys(lists);
-    // The big button saves to the cart you used last; "General" only when you have no carts yet.
-    const defaultName = lists[activeList] ? activeList : listNames[0] || listsApi.DEFAULT_LIST_NAME;
-    const otherNames = listNames.filter((n) => n !== defaultName);
 
     picker = document.createElement('div');
     picker.id = PICKER_ID;
@@ -55,22 +60,40 @@ window.Crosscart = window.Crosscart || {};
     title.textContent = 'Save to CrossCart';
     picker.appendChild(title);
 
-    const defaultBtn = document.createElement('button');
-    defaultBtn.type = 'button';
-    defaultBtn.className = 'crosscart-picker-default';
-    defaultBtn.textContent = `Add to ${defaultName}`;
-    defaultBtn.addEventListener('click', () => handlePick(defaultName, product, anchorEl, onSaved));
-    picker.appendChild(defaultBtn);
+    // The big button makes a new list: it turns into a name box, and Enter saves the product there.
+    const newBtn = document.createElement('button');
+    newBtn.type = 'button';
+    newBtn.className = 'crosscart-picker-default';
+    newBtn.textContent = '+ New list';
+    newBtn.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.maxLength = 40;
+      input.placeholder = 'Name your list, then press Enter';
+      input.className = 'crosscart-picker-default crosscart-picker-name';
+      input.setAttribute('aria-label', 'New list name');
+      // Keep typing away from the store's own keyboard shortcuts.
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Escape') closePicker();
+        if (e.key !== 'Enter') return;
+        const name = input.value.trim();
+        if (name) handlePick(name, product, anchorEl, onSaved); // an existing name just adds to that list
+      });
+      newBtn.replaceWith(input);
+      input.focus();
+    });
+    picker.appendChild(newBtn);
 
-    if (otherNames.length) {
+    if (listNames.length) {
       const divider = document.createElement('div');
       divider.className = 'crosscart-picker-divider';
-      divider.textContent = 'or choose a list';
+      divider.textContent = 'or add to a list';
       picker.appendChild(divider);
 
       const listWrap = document.createElement('div');
       listWrap.className = 'crosscart-picker-list';
-      otherNames.forEach((name) => {
+      listNames.forEach((name) => {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'crosscart-picker-chip';

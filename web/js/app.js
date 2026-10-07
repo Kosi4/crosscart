@@ -442,7 +442,41 @@
     openCart: (name) => {
       state.activeCart = name;
       state.checkoutAll = false;
+      state.confirmDeleteCart = false;
       go('cart');
+    },
+
+    newCart: () => {
+      state.newCart = true;
+      state.newCartError = '';
+      state.form.newCartName = '';
+      render();
+      const input = root.querySelector('[data-field="newCartName"]');
+      if (input) input.focus();
+    },
+
+    cancelNewCart: () => {
+      state.newCart = false;
+      render();
+    },
+
+    askDeleteCart: () => {
+      state.confirmDeleteCart = true;
+      render();
+    },
+
+    cancelDeleteCart: () => {
+      state.confirmDeleteCart = false;
+      render();
+    },
+
+    deleteCart: () => {
+      const name = state.activeCart;
+      state.confirmDeleteCart = false;
+      // Point the extension's "active list" at a cart that still exists.
+      state.activeCart = Object.keys(state.carts).find((n) => n !== name) || listsApi.DEFAULT_LIST_NAME;
+      commitCarts((lists) => listsApi.deleteList(lists, name));
+      go('carts');
     },
 
     toggleFee: () => {
@@ -553,6 +587,35 @@
     if (!el) return;
     const handler = changes[el.dataset.change];
     if (handler) handler(el);
+  });
+
+  const submits = {
+    createCart: () => {
+      const name = (state.form.newCartName || '').trim().replace(/\s+/g, ' ');
+      if (!name) state.newCartError = 'Give your cart a name.';
+      else if (state.carts[name]) state.newCartError = `You already have a cart called ${name}.`;
+      else {
+        state.newCart = false;
+        state.activeCart = name;
+        state.checkoutAll = false;
+        commitCarts((lists) => listsApi.createList(lists, name));
+        go('cart');
+        return;
+      }
+      render();
+    },
+  };
+
+  root.addEventListener('submit', (event) => {
+    const form = event.target.closest('[data-submit]');
+    if (!form) return;
+    event.preventDefault();
+    const handler = submits[form.dataset.submit];
+    if (handler) handler(form);
+  });
+
+  root.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && event.target.matches('[data-field="newCartName"]')) actions.cancelNewCart();
   });
 
   // ---------- drag to reorder ----------
@@ -955,6 +1018,26 @@
       })
       .join('');
 
+    // New carts are made here or in the extension; phones (read-only) and a missing extension can't save them.
+    const canEdit = !state.readOnly && !(state.mode === 'real' && state.extension === false);
+    const newCard = !canEdit
+      ? ''
+      : state.newCart
+        ? `<form class="cc-card cc-cart-card cc-new-cart-form" data-submit="createCart">
+            <label class="cc-cart-card-name" for="cc-new-cart-name">New cart</label>
+            <input id="cc-new-cart-name" class="cc-new-cart-input" data-field="newCartName" maxlength="40" autocomplete="off"
+              placeholder="Name your cart, then press Enter" value="${esc(state.form.newCartName || '')}" />
+            ${state.newCartError ? `<div class="cc-flag" role="alert">${esc(state.newCartError)}</div>` : ''}
+            <div class="cc-new-cart-actions">
+              <button type="button" class="cc-btn cc-btn-plain cc-btn-small" data-action="cancelNewCart">Cancel</button>
+              <button type="submit" class="cc-btn cc-btn-primary cc-btn-small">Create cart</button>
+            </div>
+          </form>`
+        : `<button class="cc-card cc-cart-card cc-new-cart" data-action="newCart">
+            <span class="cc-new-cart-plus" aria-hidden="true">+</span>
+            <span class="cc-cart-card-name">New cart</span>
+          </button>`;
+
     const allItems = Object.values(state.carts).flat();
     const totalPill = allItems.length
       ? `<div class="cc-pill cc-total-pill" role="status">All carts · ${fmt(goodsUsd(allItems))}</div>`
@@ -973,7 +1056,7 @@
           </div>`
         : '';
 
-    return `${notice}${empty}<div class="cc-grid-2">${cards}</div>${totalPill}${checkoutAllButton}`;
+    return `${notice}${empty}<div class="cc-grid-2">${cards}${newCard}</div>${totalPill}${checkoutAllButton}`;
   }
 
   function cartView(totals) {
@@ -1398,6 +1481,11 @@
               <div class="cc-pagetitle">${esc(title)}</div>
               <div class="cc-muted" style="margin-top:2px">${esc(sub)}</div>
             </div>
+            ${
+              state.screen === 'cart' && !state.readOnly && state.carts[state.activeCart]
+                ? '<button class="cc-link-danger cc-delete-cart" data-action="askDeleteCart">Delete cart</button>'
+                : ''
+            }
             <select class="cc-pill cc-select" data-change="currency" aria-label="Currency">
               ${SUPPORTED_CURRENCIES.map((c) => `<option value="${c}" ${c === state.currency ? 'selected' : ''}>${c}</option>`).join('')}
             </select>
@@ -1420,6 +1508,22 @@
                   </div>
                   <button class="cc-btn cc-btn-md cc-btn-plain" data-action="cancelDeleteAccount">Cancel</button>
                   <button class="cc-btn cc-btn-md cc-btn-danger" data-action="deleteAccount" ${state.deleteBusy ? 'disabled' : ''}>${state.deleteBusy ? 'Deleting…' : 'Delete for good'}</button>
+                </div>`
+              : ''
+          }
+          ${
+            state.screen === 'cart' && state.confirmDeleteCart
+              ? `<div class="cc-card cc-notice cc-notice-row" role="alertdialog" aria-label="Delete cart">
+                  <div class="cc-grow">
+                    <div style="font-weight:700;font-size:15px">Delete ${esc(state.activeCart)}?</div>
+                    <div class="cc-muted" style="margin-top:4px">${
+                      cartItems().length
+                        ? `Its ${plural(cartItems().length, 'item')} go too, on every device. It can't be undone.`
+                        : 'It has no items. This removes it on every device.'
+                    }</div>
+                  </div>
+                  <button class="cc-btn cc-btn-md cc-btn-plain" data-action="cancelDeleteCart">Cancel</button>
+                  <button class="cc-btn cc-btn-md cc-btn-danger" data-action="deleteCart">Delete cart</button>
                 </div>`
               : ''
           }

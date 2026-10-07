@@ -310,6 +310,19 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cc-cart-card-head { display: flex; align-items: baseline; gap: 10px; font-weight: 700; font-size: 17px; }
 .cc-cart-card-name { letter-spacing: -0.015em; flex: 1; min-width: 0; }
 .cc-cart-card-meta { color: var(--cc-text-muted); font-size: 13px; margin-top: 4px; }
+/* "+ New cart": a dashed card that turns into a name box in place. */
+.cc-new-cart { border-style: dashed; background: none; box-shadow: none; flex-direction: row; align-items: center; justify-content: center; gap: 10px; min-height: 110px; color: var(--cc-text-muted); }
+.cc-new-cart .cc-cart-card-name { flex: none; font-weight: 700; font-size: 17px; }
+.cc-new-cart:hover { color: var(--cc-text); }
+.cc-new-cart-plus { font-size: 22px; line-height: 1; font-weight: 400; }
+.cc-new-cart-form { cursor: default; gap: 10px; }
+.cc-new-cart-form .cc-cart-card-name { font-weight: 700; font-size: 17px; }
+.cc-new-cart-input { height: 38px; box-sizing: border-box; border: 1px solid var(--cc-border); border-radius: var(--cc-radius-pill); padding: 0 14px; font: inherit; font-size: 14px; color: var(--cc-text); background: var(--cc-surface); width: 100%; }
+.cc-new-cart-input:focus { outline: 2px solid var(--cc-accent); outline-offset: 1px; }
+.cc-new-cart-form .cc-flag { align-self: flex-start; margin-top: 0; }
+.cc-new-cart-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cc-btn-small { padding: 8px 16px; font-size: 13px; }
+.cc-delete-cart { font-size: 13px; padding: 0 4px; }
 
 .cc-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
 .cc-chip {
@@ -573,7 +586,8 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   .cc-side { position: static; height: auto; flex-direction: row; align-items: center; overflow-x: auto; }
   .cc-sidenav { flex-direction: row; }
   .cc-sidefoot { display: none; }
-  .cc-total-pill { left: 16px; bottom: 16px; }
+  /* Too narrow for the total and the button side by side: the total sits above it. */
+  .cc-total-pill { left: 16px; bottom: 68px; }
   .cc-checkout-all { right: 16px; bottom: 16px; }
   .cc-steps, .cc-grid-2, .cc-two-col, .cc-two-col.cc-wide-side { grid-template-columns: 1fr; }
   /* Phones: the nav bar keeps Sign out and the theme toggle; only the account card hides. */
@@ -585,7 +599,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   .cc-topbar [data-action="toggleTheme"] { display: none; } /* still in the app menu */
   .cc-sidefoot .cc-saved-card { display: none; }
   .cc-sidefoot .cc-btn { white-space: nowrap; }
-  .cc-main { padding: 20px 16px 96px; }
+  .cc-main { padding: 20px 16px 140px; }
   /* Cart rows: photo and name on the first line, choices + quantity + price + Remove below. */
   .cc-row { flex-wrap: wrap; gap: 10px; padding: 14px 16px; }
   .cc-row > .cc-item-link { flex: 1 1 calc(100% - 40px); min-width: 0; }

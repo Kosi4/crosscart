@@ -59,6 +59,16 @@ function scrape(file, url) {
   assert.strictEqual(clean('SP5DER Graphic Hoodie'), 'SP5DER Graphic Hoodie');
   assert.strictEqual(clean('ESSENTIALS Fleece Hoodie'), 'ESSENTIALS Fleece Hoodie');
   assert.strictEqual(clean('Air Jordan 4 Retro'), 'Air Jordan 4 Retro');
+  // Supermade gives the stock code as the brand; it must not end up in front of the name.
+  const ld = { '@context': 'https://schema.org', '@type': 'Product', name: 'Graphic Streetwear Zip-Up Jacket', brand: { '@type': 'Brand', name: 'SP260924P7NV' },
+    offers: { '@type': 'Offer', price: '91.38', priceCurrency: 'USD', availability: 'https://schema.org/InStock' } };
+  const page = new JSDOM(`<html><head><script type="application/ld+json">${JSON.stringify(ld)}</script></head><body><h1>Graphic Streetwear Zip-Up Jacket</h1></body></html>`,
+    { url: 'https://www.thesupermade.com/products/x', runScripts: 'outside-only' }).window;
+  page.CSS = { escape: (x) => String(x) };
+  for (const s of SCRIPTS) page.eval(fs.readFileSync(`${ROOT}/${s}`, 'utf8'));
+  assert.strictEqual(page.Crosscart.scrape.scrapeProduct().title, 'Graphic Streetwear Zip-Up Jacket');
+  page.close();
+  window.close();
   console.log('  name cleanup: ok');
 }
 

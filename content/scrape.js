@@ -845,7 +845,8 @@ window.Crosscart = window.Crosscart || {};
     if (!b || squash(title).includes(b)) return title;
     const siteName = squash(document.querySelector('meta[property="og:site_name"]')?.content);
     if (squash(hostname).includes(b) || (siteName && (siteName.includes(b) || b.includes(siteName)))) return title;
-    return `${brand} ${title}`;
+    // Some stores put a stock code in the brand field (Supermade: "SP260924P7NV"); cleanTitle drops it.
+    return window.Crosscart.agentSites.cleanTitle(`${brand} ${title}`);
   }
 
   function scrapeProduct() {

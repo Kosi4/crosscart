@@ -344,6 +344,9 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cc-group-store { font-weight: 700; font-size: 15px; }
 .cc-group-domain { font-size: 11px; color: var(--cc-text-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
 .cc-caret { color: var(--cc-text-faint); font-size: 12px; width: 16px; text-align: center; }
+/* Drawn chevron: the app font has no ▾, so the fallback glyph shrank to a dot. */
+.cc-caret::after { content: ''; display: inline-block; width: 6px; height: 6px; border: solid currentColor; border-width: 0 1.6px 1.6px 0; transform: translateY(-2px) rotate(45deg); }
+.cc-caret-closed::after { transform: rotate(-45deg); }
 
 .cc-row { display: flex; gap: 14px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--cc-border); }
 /* Drag to reorder: the whole product panel lifts, neighbours glide out of the way. */
@@ -454,7 +457,6 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
   font-size: 13px;
   color: var(--cc-text);
   background: transparent;
-  width: 72px;
 }
 .cc-variant-free input:focus { border-style: solid; border-color: var(--cc-text-faint); }
 
@@ -631,7 +633,7 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 /* Store header total sits in the same column as the item prices below it. */
 .cc-group-head { gap: 14px; }
 .cc-group-total { font-weight: 700; }
-.cc-group-head .cc-caret { width: 66px; text-align: right; padding-right: 6px; box-sizing: border-box; }
+.cc-group-head .cc-caret { width: 66px; text-align: center; }
 .cc-remove { width: 66px; text-align: center; }
 @media (max-width: 760px) {
   /* Phone rows: name; options + quantity; price + Remove. */

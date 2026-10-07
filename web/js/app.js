@@ -912,7 +912,7 @@
     const open = state.feeOpen;
     const fee = `
       <button class="cc-summary-row cc-fee-toggle" data-action="toggleFee" aria-expanded="${open}" aria-controls="cc-fee-parts">
-        <div class="cc-grow">CrossCart fee <span class="cc-caret">${open ? '▾' : '▸'}</span></div><div>${fmt(q.fee)}</div>
+        <div class="cc-grow">CrossCart fee <span class="cc-caret${open ? '' : ' cc-caret-closed'}" aria-hidden="true"></span></div><div>${fmt(q.fee)}</div>
       </button>
       ${open ? `<div class="cc-fee-parts" id="cc-fee-parts">${parts.map(([l, v]) => row(l, v)).join('')}</div>` : ''}`;
 
@@ -1083,7 +1083,7 @@
               ${store.name.toLowerCase() === group.domain.toLowerCase() ? '' : `<div class="cc-group-domain">${esc(group.domain)}</div>`}
             </div>
             <div class="cc-group-total">${fmt(goodsUsd(group.items.filter(isSelected)))}</div>
-            <div class="cc-caret">${open ? '▾' : '▸'}</div>
+            <div class="cc-caret${open ? '' : ' cc-caret-closed'}" aria-hidden="true"></div>
           </button>
           ${open ? `<div data-store="${esc(group.domain)}">${rows}</div>` : ''}
         </div>`;

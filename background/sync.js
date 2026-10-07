@@ -302,6 +302,9 @@ function applyServerChanges(lists, shadow, listIds, serverLists, serverItems) {
       }
       continue;
     }
+    // Synced before but gone locally means it was deleted here: don't let the echo
+    // of an earlier push bring it back (same rule as items below).
+    if (shadow.lists[list.id] && !next[localName || list.name]) continue;
     if (localName && localName !== list.name && next[localName] && !next[list.name]) {
       next[list.name] = next[localName];
       delete next[localName];

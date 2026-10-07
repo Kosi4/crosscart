@@ -262,5 +262,25 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
   assert.strictEqual(w8.store.cartLists.Tops[0].originalPrice, 19299);
   console.log('16 sale price round-trips: ok');
 
+  // A list made and then deleted before the next sync: the pull re-reads the row
+  // the create pushed, and that echo must not bring the list back.
+  const w9 = makeWorld({ cartLists: { Shoes: [item('l-a', 'A', 'https://stockx.com/a', '10', 'USD')] }, activeList: 'Shoes' });
+  await w9.send({ type: 'linkExtension', tokenHash: 'hash' });
+  w9.store.cartLists = { ...clone(w9.store.cartLists), Temp: [] };
+  await w9.send({ type: 'syncNow' });
+  assert.ok(w9.active('lists').some((l) => l.name === 'Temp'));
+  const withoutTemp = clone(w9.store.cartLists);
+  delete withoutTemp.Temp;
+  w9.store.cartLists = withoutTemp;
+  await w9.send({ type: 'syncNow' });
+  assert.deepStrictEqual(Object.keys(w9.store.cartLists), ['Shoes']);
+  assert.ok(!w9.active('lists').some((l) => l.name === 'Temp'));
+  console.log('17 local list delete survives the echo of its create: ok');
+
+  w9.db.lists.push({ id: '33333333-3333-4333-8333-333333333333', user_id: USER, name: 'Hats', position: 1, created_at: w9.now(), updated_at: w9.now(), deleted_at: null });
+  await w9.send({ type: 'syncNow' });
+  assert.ok('Hats' in w9.store.cartLists);
+  console.log('18 list added on another device still pulled: ok');
+
   console.log('ALL SYNC CHECKS PASSED');
 })().catch((e) => { console.error('FAILED:', e); process.exit(1); });

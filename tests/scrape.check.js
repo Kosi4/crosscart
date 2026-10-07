@@ -50,6 +50,18 @@ function scrape(file, url) {
   };
 }
 
+// Name cleanup: a stock code in front goes, brand names that look like codes stay.
+{
+  const { window } = new JSDOM('', { runScripts: 'outside-only' });
+  for (const s of SCRIPTS.slice(0, 4)) window.eval(fs.readFileSync(`${ROOT}/${s}`, 'utf8'));
+  const clean = window.Crosscart.agentSites.cleanTitle;
+  assert.strictEqual(clean('SP260924P7NV Graphic Streetwear Zip-Up Jacket'), 'Graphic Streetwear Zip-Up Jacket');
+  assert.strictEqual(clean('SP5DER Graphic Hoodie'), 'SP5DER Graphic Hoodie');
+  assert.strictEqual(clean('ESSENTIALS Fleece Hoodie'), 'ESSENTIALS Fleece Hoodie');
+  assert.strictEqual(clean('Air Jordan 4 Retro'), 'Air Jordan 4 Retro');
+  console.log('  name cleanup: ok');
+}
+
 const expectedFile = `${__dirname}/scrape.expected.json`;
 const expected = fs.existsSync(expectedFile) ? JSON.parse(fs.readFileSync(expectedFile, 'utf8')) : {};
 const record = process.argv.includes('--record');

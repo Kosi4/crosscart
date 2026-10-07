@@ -42,6 +42,9 @@ window.Crosscart = window.Crosscart || {};
       const kept = parts.filter((p) => !containsBoilerplatePhrase(p));
       if (kept.length) title = kept.join(' - ');
     }
+    // A stock code in front of the name ("SP260924P7NV Graphic Jacket"): 8+ capitals and
+    // digits with at least 4 digits. Brand names like "SP5DER" are too short to match.
+    title = title.replace(/^(?=[A-Z0-9-]*(?:\d[A-Z-]*){4})[A-Z0-9-]{8,}\s+(?=\S{3})/, '');
     return title.replace(/\s{2,}/g, ' ').trim();
   }
 

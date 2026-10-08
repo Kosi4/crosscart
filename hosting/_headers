@@ -1,0 +1,9 @@
+# Cloudflare Pages response headers (copied into site/ by scripts/pages-build.sh).
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains
+/web/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https://yrfengptboswesicdmhe.supabase.co wss://yrfengptboswesicdmhe.supabase.co https://open.er-api.com; base-uri 'none'; form-action 'self'; object-src 'none'; frame-ancestors 'none'

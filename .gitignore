@@ -20,4 +20,5 @@ fresh-session-prompt.md
 ad-assets/
 Claude outputs/
 dist/
+site/
 .playwright-mcp/

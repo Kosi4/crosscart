@@ -14,7 +14,7 @@ Save products from any online store into one cart, with one running total in you
 
 Checks (plain Node, no install): `node tests/sync.check.js`, `pricing`, `lists`, `release`. The popup and scraper checks (`popup.check.js`, `scrape.check.js`) need jsdom and saved store pages in `../crosscart-dev`.
 
-Release: set `PROD_WEB_ORIGIN` in `shared/config.js`, then `node scripts/release.js` builds `dist/crosscart-<version>.zip` for the Chrome Web Store. Hosting config for the web app is in `vercel.json`.
+Release: set `PROD_WEB_ORIGIN` in `shared/config.js`, then `node scripts/release.js` builds `dist/crosscart-<version>.zip` for the Chrome Web Store. The web app is hosted on Cloudflare Pages: build command `sh scripts/pages-build.sh`, output directory `site` (headers and redirects in `hosting/`).
 
 ## The scraping problem
 

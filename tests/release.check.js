@@ -12,7 +12,7 @@ for (const entry of ['manifest.json', 'background', 'content', 'shared', 'popup'
   fs.cpSync(path.join(ROOT, entry), path.join(tmp, entry), { recursive: true });
 }
 const config = path.join(tmp, 'shared/config.js');
-fs.writeFileSync(config, fs.readFileSync(config, 'utf8').replace('https://DOMAIN-NOT-SET.invalid', 'https://crosscart.example'));
+fs.writeFileSync(config, fs.readFileSync(config, 'utf8').replace(/PROD_WEB_ORIGIN = '[^']+'/, "PROD_WEB_ORIGIN = 'https://crosscart.example'"));
 
 execFileSync('node', [path.join(tmp, 'scripts/release.js')], { stdio: 'pipe' });
 const out = path.join(tmp, 'dist/extension');

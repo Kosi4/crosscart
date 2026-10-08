@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'" />
   <title>Privacy policy · CrossCart</title>
   <link rel="icon" href="../icons/icon48.png" />
   <link rel="stylesheet" href="../shared/tokens.css" />
@@ -39,6 +39,7 @@
       <li><strong>Google</strong> handles “Sign in with Google”.</li>
       <li><strong>open.er-api.com</strong> provides exchange rates. It receives no personal data.</li>
       <li><strong>Sentry</strong> receives error reports when something breaks in CrossCart (servers in Germany, EU): the error message, where in our code it happened, and the CrossCart page address without anything after “?” or “#”. No email, account details or store pages you visit.</li>
+      <li><strong>Cloudflare</strong> hosts this website and counts visits with Cloudflare Web Analytics: which page was opened, the browser and rough country. No cookies, nothing that identifies you, and nothing from the extension.</li>
     </ul>
 
     <h2>Keeping and deleting your data</h2>

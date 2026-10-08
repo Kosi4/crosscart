@@ -636,8 +636,8 @@ a.cc-item-link:hover .cc-item-title { text-decoration: underline; }
 .cc-item-title.cc-ellipsis { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; min-width: 96px; }
 
 /* Read-only (no extension, e.g. a phone): values stay visible, controls can't be changed. */
-.cc-readonly .cc-remove, .cc-readonly .cc-variant-free { display: none; }
-.cc-readonly .cc-qty, .cc-readonly .cc-variant-pick select { pointer-events: none; opacity: 0.75; }
+.cc-readonly .cc-remove, .cc-readonly .cc-variant-free:has(input:placeholder-shown) { display: none; }
+.cc-readonly .cc-qty, .cc-readonly .cc-variant-pick select, .cc-readonly .cc-variant-free input { pointer-events: none; opacity: 0.75; }
 .cc-readonly [data-store] > .cc-row, .cc-readonly .cc-group-head { cursor: default; }
 
 /* Saved on sale: the pre-sale price struck through and the discount. */
